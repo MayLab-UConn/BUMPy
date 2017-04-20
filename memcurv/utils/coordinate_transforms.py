@@ -143,4 +143,11 @@ def junction_transform(xyz_coords,r_cylinder,r_junction,outer_leaflet='top'):
         xyz_coords[:,2] = (-1) * xyz_coords[:,2]
 
     r_max = r_cylinder + r_junction
-    arclength_angle = (R_max - rho) / r
+    # arc length starts not from 0, but first flat radius corresponding
+    # to top of cylinder. If properly set up this is r_max - quarter_circle
+    arclength = rho - (r_max - np.pi * r_junction / 2)
+    arclength_angle = arclength / r_junction
+    # rho tacks on r_cylinder, z_transform is ok with just trig transform
+    rho_transform = r_junction * np.sin(arclength_angle) + r_cylinder
+    z_transform   = r_junction * np.cos(arclength_angle)
+    return pol2cart(theta,rho_transform,z_transform)

@@ -1,0 +1,1 @@
+-change code so that z inversions take place prior to curved transformations

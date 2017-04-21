@@ -1,1 +1,7 @@
 -change code so that z inversions take place prior to curved transformations
+-make rigid body transformations class
+  -move relevant curve transform methods to rigid body
+
+-test everything, make tests reproducible, callable
+
+-change z centering based on range to range average of 10 most extreme points

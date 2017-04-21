@@ -24,29 +24,7 @@
 
 
 import numpy as np
-# ------------------------------------------------------------------------------
-# centering coordinates
-# ------------------------------------------------------------------------------
-def center_coordinates_3D(coords,
-                       x_center_type='mean',
-                       y_center_type='mean',
-                       z_center_type='range'):
-    ''' Centers 3D cartesian coordinate system about the origin. Each dimension
-        can be centered based on two different, criteria:
-            mean: subtracts average from coordinates
-            range:subtracts midpoint between maximum and minimum coordinate.
-        "range" should be used for centering z axis, as asymmetric bilayers can
-        tilt the average
-    '''
-        def center_1D(coords1D,type):
-            if   type == 'mean':
-                return coords1D - np.mean(coords1D)
-            elif type == 'range':
-                return coords1D - (np.max(coords1D) - np.min(coords1D))/2
-        coords[:,0] = center_1D(coords[:,0],x_center_type)
-        coords[:,1] = center_1D(coords[:,1],y_center_type)
-        coords[:,2] = center_1D(coords[:,2],z_center_type)
-        return coords
+
 
 # ------------------------------------------------------------------------------
 # cartesian to polar and back

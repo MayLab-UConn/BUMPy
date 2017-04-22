@@ -17,7 +17,7 @@ class bilayer_pdb:
         self.coords    = coords     # numpy, 3D array of nparts * xyz
         # organizational variables
         self.leaflets  = leaflets   # 1 for top, 0 for bot
-        self.resid_list= resid_list # nres size list
+        self.resid_list= dict()        # nres size dictionary
     # -------------------------------------------------------------------------
     # Calculate and superficially change dataset properties
     # -------------------------------------------------------------------------
@@ -52,7 +52,7 @@ class bilayer_pdb:
         ''' Renumber atoms from 1 to natoms'''
         self.atomno = np.arange(1,self.atomno.size + 1)
         self.assign_resid_list()  # update resid list
-        
+
     def renumber_resids(self):
         ''' Renumber residues from 1 to n_residues '''
         for i in range(self.resid_list):
@@ -62,13 +62,11 @@ class bilayer_pdb:
     def reorder_byleaflet(self):
         pass
 
-    def assign_resid_list(self):
-        reslist = np.unique(self.resid)
-        self.resid_list = list()
-        for i in range(1,len(reslist)+1):         # make a bunch of empty lists
-            self.resid_list.append(list())
+    def assign_resid_list(self,wipe=True):
+        if wipe:
+            self.resid_list = dict()
         for i in range(0,len(self.atomno)):            # 0 will be unused
-            self.resid_list[self.resid[i]].append(i)
+            self.resid_list.update({resid[i]:[resid_list(a),i]})
 
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes

@@ -5,3 +5,12 @@
 -test everything, make tests reproducible, callable
 
 -change z centering based on range to range average of 10 most extreme points
+
+-random slicing selection, spherical and rectangular, based on needed dimensions
+and flat bilayer box size
+
+-automatic calculation of area per lipid in bilayer_pdb class
+
+-MONOlayer slice (add option of lipid deletion vs scaling)
+
+-add coordinate scaling in nonrigid transformations

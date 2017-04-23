@@ -14,3 +14,7 @@ and flat bilayer box size
 -MONOlayer slice (add option of lipid deletion vs scaling)
 
 -add coordinate scaling in nonrigid transformations
+
+-change bilayer_pdb to molecules, using some find and replace so I don't miss
+ anything
+ 

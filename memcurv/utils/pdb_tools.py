@@ -4,9 +4,11 @@ import numpy as np
 
 class bilayer_pdb:
 
-    def __init__(self,atomtype=[],atomno=[],atomname=[],resname=[],chain=[],
+    def __init__(self,infile=None,atomtype=[],atomno=[],atomname=[],resname=[],chain=[],
                 resid=[],junk=[],coords=[],leaflets=[],resid_list=[]):
-        # things needed to write pdb
+        '''Can initialize from file, or with manual inputs (like when slicing).
+           Can also initialize with all objects blank, and wait for input
+        '''
         self.atomtype  = atomtype   #   str, 0-5
         self.atomno    = atomno     #   int, 6-10
         self.atomname  = atomname   #   str, 12-15
@@ -18,6 +20,10 @@ class bilayer_pdb:
         # organizational variables
         self.leaflets  = leaflets   # 1 for top, 0 for bot
         self.resid_list= dict()        # nres size dictionary
+        if infile is not None:
+            self.read_pdb(infile)
+        # things needed to write pdb
+
     # -------------------------------------------------------------------------
     # Calculate and superficially change dataset properties
     # -------------------------------------------------------------------------
@@ -55,18 +61,22 @@ class bilayer_pdb:
 
     def renumber_resids(self):
         ''' Renumber residues from 1 to n_residues '''
-        for i in range(self.resid_list):
-            resid[resid_list[i,:]]= i + 1
-            self.assign_resid_list
+        counter = 1
+        for i in list(self.resid_list.keys()):
+            self.resid[self.resid_list[i]]= counter
+            counter += 1
+        self.assign_resid_list    # update resid_list
 
     def reorder_byleaflet(self):
         pass
 
     def assign_resid_list(self,wipe=True):
         if wipe:
-            self.resid_list = dict()
-        for i in range(0,len(self.atomno)):            # 0 will be unused
-            self.resid_list.update({resid[i]:[resid_list(a),i]})
+            self.resid_list = dict()                   # start from scratch
+            for i in np.unique(self.resid):
+                self.resid_list[i] = []
+        for i in range(0,len(self.atomno)):
+            self.resid_list[self.resid[i]].append(i)
 
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
@@ -87,7 +97,8 @@ class bilayer_pdb:
 
     def slice_pdb(self,slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
-        return bilayer_pdb(atomtype=[self.atomtype[x] for x in slice_indices],
+        return bilayer_pdb(infile=None,
+                           atomtype=[self.atomtype[x] for x in slice_indices],
                            atomno=  self.atomno[  slice_indices],
                            atomname=[self.atomname[x] for x in slice_indices],
                            resname= [self.resname[x]  for x in slice_indices],
@@ -97,8 +108,7 @@ class bilayer_pdb:
                            leaflets=self.leaflets[slice_indices],
                            coords=  self.coords[  slice_indices,:])
 
-    def reorder_byleaflet(self):
-        pass
+
     # -------------------------------------------------------------------------
     # calculating geometric slices
     # -------------------------------------------------------------------------

@@ -38,21 +38,20 @@ def rotate_coordinates(coords,rotation_angles,com=False,unit='degrees'):
     if com:
         com_coords = np.mean(coords,axis=0)
         coords = coords - com_coords # center around axis, will translate later
-    # develop rotation matrices
-    r_x = np.array([[1,                       0,                          0],
+    # develop rotation matrices (taken from google, 3D rotations)
+    r_x = np.array([[1,                       0,                             0],
                     [0, np.cos(rotation_angles[0]),-np.sin(rotation_angles[0])],
                     [0, np.sin(rotation_angles[0]),np.cos(rotation_angles[0])]])
 
     r_y = np.array([[np.cos(rotation_angles[1]) ,0, np.sin(rotation_angles[1])],
-                    [0                       ,1,      0                      ],
+                    [0                       ,1,                           0  ],
                     [-np.sin(rotation_angles[1]),0,np.cos(rotation_angles[1])]])
 
     r_z = np.array([[np.cos(rotation_angles[2]),-np.sin(rotation_angles[2]), 0],
                     [np.sin(rotation_angles[2]),  np.cos(rotation_angles[2]),0],
                     [0,                       0,                            1]])
-    # net rotation matrix
-    rotmat = r_x.dot(r_y).dot(r_z)
-    rotcoords = np.dot(coords,rotmat)
+    rotmat = r_x.dot(r_y).dot(r_z)       # net rotation matrix
+    rotcoords = np.dot(coords,rotmat)    # do rotation
     if com:
         rotcoords = rotcoords + com_coords # return to original position
     return rotcoords

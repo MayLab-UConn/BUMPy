@@ -1,20 +1,102 @@
--change code so that z inversions take place prior to curved transformations
--make rigid body transformations class
-  -move relevant curve transform methods to rigid body
+--------------------------------------------------------------------------------
+General/semantic:
+--------------------------------------------------------------------------------
 
--test everything, make tests reproducible, callable
+-come up with a funny name for the program
+-add in README how area matching will be performed *** THIS IS IMPORTANT n***
+-change bilayer_pdb class name to Molecules, bilayer_pdb made no sense. Update
+ this in all modules
 
--change z centering based on range to range average of 10 most extreme points
+--------------------------------------------------------------------------------
+In main:
+--------------------------------------------------------------------------------
 
--random slicing selection, spherical and rectangular, based on needed dimensions
-and flat bilayer box size
+-make function to check if input bilayer is large enough to get slices out of
+ for desired shapes
 
--automatic calculation of area per lipid in bilayer_pdb class
+--------------------------------------------------------------------------------
+In argument_parsing:
+--------------------------------------------------------------------------------
 
--MONOlayer slice (add option of lipid deletion vs scaling)
+-do everything, we have nothing for now
 
--add coordinate scaling in nonrigid transformations
+--------------------------------------------------------------------------------
+In nonrigid_coordinate_transformations:
+--------------------------------------------------------------------------------
 
--change bilayer_pdb to molecules, using some find and replace so I don't miss
- anything
- 
+-centering coordinates has been moved to rigid_body_transformations, update the
+ centering code in nonrigid_coordinate_transformations to access that module
+-make coordinate_scaling function
+-junction_transform HAS NOT BEEN TESTED AT ALL, is probably totally broken
+ --------------------------------------------------------------------------------
+In rigid_body_transformations:
+--------------------------------------------------------------------------------
+
+-atm, the default way to center the z axis is to take the midpoint of coordinate
+ extremes. This avoids issues from asymmetric bilayers, but leads to some noise.
+ Perhaps center based on 10 extreme points on top and bottom to even out.
+
+
+--------------------------------------------------------------------------------
+In shape_assembly:
+--------------------------------------------------------------------------------
+
+-make examples, we have a crappy one for now that doesn't match changes in the
+ flowthrough that I'm trying to implement. Keep in mind modularity when making
+ these functions.
+-be sure to feature the monolayer splicing and scaling
+
+--------------------------------------------------------------------------------
+In molecules:
+--------------------------------------------------------------------------------
+
+-Make function to select random slicing location for flat bilayer (given
+ restrictions based on needed dimensions and flat bilayer dimensions)
+-Make circular_slice function
+-make area-per-lipid calculations
+-make thickness calculations **** THIS REQUIRES SOME THOUGHT ****
+-change string storage. Right now I have lists for of atomtype, atomname, chain,
+ and trailers (junk), they should be changed to a dictionary with each field.
+ This will cut down on verboseness of class and number of variables, will need
+ to rewrite functions to account for new data structure
+-assign_leaflets may need a rewrite to account for resid_list dictionary
+-need to write reorder_by_leaflet
+-make write_topology_file function
+
+--------------------------------------------------------------------------------
+Involving multiple modules/flowthrough alterations:
+--------------------------------------------------------------------------------
+
+-change code so that z inversions take place prior to curved transformations.
+ Right now inversions take place in nonrigid_coordinate transformations. It
+ makes more sense to have an all-or-nothing inversion before slicing (when user
+ selects "top" vs "bottom" leaflet), then have shape_assembly assume the current
+ top is correct, inverting sub-slices as necessary to match.
+-main should read in pdb, the feed to shape_assembly, rather than how it is now
+ where shape assembly reads in pdb. This way, shape assembly can RETURN a
+ Molecules instance, which aids in modularity and building-block mechanism of
+ shape_assembly
+
+--------------------------------------------------------------------------------
+TESTING
+--------------------------------------------------------------------------------
+My biggest error in the week of coding I've done so far is not preparing
+testable units. For the future,
+  a) build from the bottom up, so that everything can be tested as I go.
+     What I did instead was built random parts, that couldn't be tested until
+     I built the code that would populate the variables I was working with
+  b) ACTUALLY DO THE TESTING
+
+For this project, I have a list of functionalities that need to be tested, and
+the order in which they should be tested. Most of the "testing" folder is
+useless, scripts I started that never finished. 
+1. argparse
+2. pdb reading
+3. pdb string and organizational manipulations (renumbering atoms, resids, etc)
+4. pdb slicing and splicing
+5. pdb_writing
+6. rigid body transformations
+7. non-rigid transformations
+
+THEN, look at top-level things like shape assembly and main, once the other
+components are verified

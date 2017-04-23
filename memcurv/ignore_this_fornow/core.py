@@ -28,7 +28,7 @@ def attempt_connection(shape1,shape2,mode='adjacent'):
                             or radial? ('no','lateral',radial')
         Note that if rotations are necessary, suggested angles will be
         calculated for the SECOND object'''
-
+    pass
 
 
 

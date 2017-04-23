@@ -15,3 +15,7 @@ flat_bilayer_file = '/Users/kevinboyd/Projects/tim23/Lipid_Curvature/folders_wai
 
 start_bilayer = pdb.bilayer_pdb()
 start_bilayer.read_pdb(flat_bilayer_file)
+
+#test get_current_dims
+
+#test get_current_minmax

@@ -4,8 +4,8 @@ import numpy as np
 
 class bilayer_pdb:
 
-    def __init__(self,infile=None,atomtype=[],atomno=[],atomname=[],resname=[],chain=[],
-                resid=[],junk=[],coords=[],leaflets=[],resid_list=[]):
+    def __init__(self,infile=None,atomtype=[],atomno=[],atomname=[],resname=[],
+                 chain=[],resid=[],junk=[],coords=[],leaflets=[],resid_list=[]):
         '''Can initialize from file, or with manual inputs (like when slicing).
            Can also initialize with all objects blank, and wait for input
         '''
@@ -67,7 +67,7 @@ class bilayer_pdb:
             counter += 1
         self.assign_resid_list    # update resid_list
 
-    def reorder_byleaflet(self):
+    def reorder_by_leaflet(self):
         pass
 
     def assign_resid_list(self,wipe=True):
@@ -166,7 +166,7 @@ class bilayer_pdb:
         y = np.array(ycoord) # but I suck with lists
         z = np.array(zcoord)
         self.coords = np.stack((x,y,z),axis=1)
-
+        fid.close()   # test this?
     def write_pdb(self,outfile):
         # will need modulus for atomno(max=99,999) AND resno (max = 9,999)
         fout = open(outfile,'w')
@@ -191,3 +191,5 @@ class bilayer_pdb:
                                    self.coords[i,2],
                                    self.junk[i]))
         fout.close()
+    def write_topology(self,outfile):
+        pass

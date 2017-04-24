@@ -6,19 +6,15 @@ General/semantic:
 -add in README how area matching will be performed *** THIS IS IMPORTANT n***
 -change bilayer_pdb class name to Molecules, bilayer_pdb made no sense. Update
  this in all modules
-
+-change shape_assembly to shapes
 --------------------------------------------------------------------------------
 In main:
 --------------------------------------------------------------------------------
 
 -make function to check if input bilayer is large enough to get slices out of
  for desired shapes
-
---------------------------------------------------------------------------------
-In argument_parsing:
---------------------------------------------------------------------------------
-
--do everything, we have nothing for now
+-add descriptions in help text
+-add informational display function for command line inputs
 
 --------------------------------------------------------------------------------
 In nonrigid_coordinate_transformations:
@@ -62,6 +58,7 @@ In molecules:
 -assign_leaflets may need a rewrite to account for resid_list dictionary
 -need to write reorder_by_leaflet
 -make write_topology_file function
+-make write_index_file function
 
 --------------------------------------------------------------------------------
 Involving multiple modules/flowthrough alterations:
@@ -89,7 +86,7 @@ testable units. For the future,
 
 For this project, I have a list of functionalities that need to be tested, and
 the order in which they should be tested. Most of the "testing" folder is
-useless, scripts I started that never finished. 
+useless, scripts I started that never finished.
 1. argparse
 2. pdb reading
 3. pdb string and organizational manipulations (renumbering atoms, resids, etc)

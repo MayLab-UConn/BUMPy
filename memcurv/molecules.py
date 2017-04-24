@@ -37,7 +37,8 @@ class bilayer_pdb:
             max second row
         '''
         return np.vstack((np.min(self.coords,axis=0),np.max(self.coords,axis=0)))
-
+    def calc_thickness(self):
+        pass
     def assign_leaflets(self):
         ''' Labels indices as top (1) or bottom (0) leaflet based on COM of
            entire residue

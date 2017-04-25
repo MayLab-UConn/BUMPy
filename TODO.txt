@@ -4,9 +4,7 @@ General/semantic:
 
 -come up with a funny name for the program
 -add in README how area matching will be performed *** THIS IS IMPORTANT n***
--change bilayer_pdb class name to Molecules, bilayer_pdb made no sense. Update
- this in all modules
--change shape_assembly to shapes
+
 --------------------------------------------------------------------------------
 In main:
 --------------------------------------------------------------------------------
@@ -34,13 +32,14 @@ In rigid_body_transformations:
 
 
 --------------------------------------------------------------------------------
-In shape_assembly:
+In shapes:
 --------------------------------------------------------------------------------
 
 -make examples, we have a crappy one for now that doesn't match changes in the
  flowthrough that I'm trying to implement. Keep in mind modularity when making
  these functions.
 -be sure to feature the monolayer splicing and scaling
+-write autodetect_params
 
 --------------------------------------------------------------------------------
 In molecules:
@@ -48,27 +47,16 @@ In molecules:
 
 -Make function to select random slicing location for flat bilayer (given
  restrictions based on needed dimensions and flat bilayer dimensions)
--Make circular_slice function
 -make area-per-lipid calculations
 -make thickness calculations **** THIS REQUIRES SOME THOUGHT ****
--change string storage. Right now I have lists for of atomtype, atomname, chain,
- and trailers (junk), they should be changed to a dictionary with each field.
- This will cut down on verboseness of class and number of variables, will need
- to rewrite functions to account for new data structure
--assign_leaflets may need a rewrite to account for resid_list dictionary
--need to write reorder_by_leaflet
 -make write_topology_file function
 -make write_index_file function
+-make sorter function for residues within a leaflet
 
 --------------------------------------------------------------------------------
 Involving multiple modules/flowthrough alterations:
 --------------------------------------------------------------------------------
 
--change code so that z inversions take place prior to curved transformations.
- Right now inversions take place in nonrigid_coordinate transformations. It
- makes more sense to have an all-or-nothing inversion before slicing (when user
- selects "top" vs "bottom" leaflet), then have shape_assembly assume the current
- top is correct, inverting sub-slices as necessary to match.
 -main should read in pdb, the feed to shape_assembly, rather than how it is now
  where shape assembly reads in pdb. This way, shape assembly can RETURN a
  Molecules instance, which aids in modularity and building-block mechanism of

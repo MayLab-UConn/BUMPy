@@ -16,7 +16,7 @@ class simple_shape(object):
         self.outer_leaflet         = args.outer_leaflet
         self.upper_apl             = args.upper_area_per_lipid
         self.lower_apl             = args.lower_area_per_lipid
-        self.template_bilayer      = molecules.bilayer_pdb(file=args.bilayer)
+        self.template_bilayer      = molecules.Molecules(file=args.bilayer)
         self.curved_bilayer        = None
         # things to do
         if args.outer_leaflet == 'bot':   # flip upside down if necessary
@@ -44,7 +44,7 @@ class semisphere(simple_shape):
            are present'''
         pass
     def gen_shape(self):
-        '''Main assembly function, returns a bilayer_pdb object'''
+        '''Main assembly function, returns a Molecules object'''
         # radius is quarter circle
         top_slice_radius = pi * (self.r_sphere + (self.thickness/2) / 2)
         bot_slice_radius = pi * (self.r_sphere - (self.thickness/2) / 2)
@@ -67,7 +67,7 @@ class semisphere(simple_shape):
         bot_leaflet.coords = nrb.scale_coordinates_radially(
                            self.template_bilayer.coords,
                            (top_slice_radius / bot_slice_radius))
-        # merge leaflets                   
+        # merge leaflets
         curved_bilayer = top_leaflet.append_pdb(bot_leaflet)
         curved_bilayer.coords = nrb.spherical_transform(curved_bilayer.coords,
                                                         self.r_sphere)

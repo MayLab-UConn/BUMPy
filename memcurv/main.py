@@ -3,7 +3,7 @@
 from argparse import ArgumentParser
 import shapes
 import molecules
-import nonrigid_coordinate_transformations nrb
+import nonrigid_coordinate_transformations as nrb
 import rigid_body_transforms as rb
 
 

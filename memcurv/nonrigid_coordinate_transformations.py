@@ -57,19 +57,8 @@ def cylindrical_transform(xyz_coords,r,outer_leaflet='top'):
         given radius r. Completeness of cylinder will depend on length of x
         dimension, y dimension is long axis of cylinder.
 
-        Direction of curvature by default is "top" : --(^)--, "bot" : --(_)--.
-        While once made it is trivial to rotate the shapes 180 degrees to match
-        the direction of curvature, this step determines which leaflet will be
-        "inner" and which will be "outer". For ease of future rotations,
-        all transformations here will be outer=top, with an upward protrusion
-        of the cylinder. If outer_leaflet is set to 'bot', z dimension will be
-        inverted about z axis prior to transformation.
     '''
     xyz_coords = center_coordinates_3D(xyz_coords)
-    # determine if curving up or down
-    # note that curving will be from center of bilayer.
-    if outer_leaflet == 'bot':
-        xyz_coords[:,2] = (-1) * xyz_coords[:,2]
     radii = r + xyz_coords[:,2]
     offset_angle = np.pi / 2
     # calculate arc lengths, this is independent of z
@@ -84,19 +73,11 @@ def spherical_transform(xyz_coords,r,outer_leaflet='top'):
     ''' Transforms a circular segment of coordinates into a sphere with
         given radius r. Completeness of sphere will depend on radius of circular
         bilayer patch.
-        Direction of curvature by default is "top" : --(^)--, "bot" : --(_)--.
-        While once made it is trivial to rotate the shapes 180 degrees to match
-        the direction of curvature, this step determines which leaflet will be
-        "inner" and which will be "outer." For ease of future rotations,
-        all transformations here will be outer=top, with an upward protrusion
-        of the sphere. If outer_leaflet is set to 'bot', z dimension will be
-        inverted about z axis prior to transformation.
+
     '''
     xyz_coords = center_coordinates_3D(xyz_coords)
     (theta,rho,z) = cart2pol(xyz_coords)
 
-    if outer_leaflet == 'bot':
-        xyz_coords[:,2] = (-1) * xyz_coords[:,2]
     radii = r + xyz_coords[:,2]
     offset_angle = np.pi / 2
     arc_length_angle = rho / r
@@ -104,21 +85,18 @@ def spherical_transform(xyz_coords,r,outer_leaflet='top'):
     z_transform   = radii * np.sin(arc_length_angle)
     return pol2cart(theta,rho_transform,z_transform)
 
-def junction_transform(xyz_coords,r_cylinder,r_junction,outer_leaflet='top'):
+def junction_transform(xyz_coords,r_cylinder,r_junction):
     ''' Tranforms a section of bilayer into a hollow junction connecting
         orthogonal bilayer segments. Bilayer should be a hollowed disk.
 
         Directionality is tricky here, working with two radii. We will use the
         convention of "inner" as the leaflet connecting to the inner leaflet of
         the cylindrical region of the junction. So, if outer_leaflet is set to
-        top, the BOTTOM leaflet will connect to inner cylindrical species. If
-        set to "bot", will invert z axis (flipping bilayer) prior to transform.
+        top(in shapes), the BOTTOM leaflet will connect to the
+        inner cylindrical species.
     '''
     xyz_coords = center_coordinates_3D(xyz_coords)
     (theta,rho,z) = cart2pol(xyz_coords)
-
-    if outer_leaflet == 'bot':
-        xyz_coords[:,2] = (-1) * xyz_coords[:,2]
 
     r_max = r_cylinder + r_junction
     # arc length starts not from 0, but first flat radius corresponding

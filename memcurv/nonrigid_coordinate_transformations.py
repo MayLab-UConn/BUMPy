@@ -24,6 +24,7 @@
 
 
 import numpy as np
+import rigid_body_transforms as rb
 
 
 # ------------------------------------------------------------------------------
@@ -48,26 +49,55 @@ def pol2cart(theta,rho,z):
     y = rho * np.sin(theta)
     cart_coords = np.stack((x,y,z),axis=1)
     return cart_coords
+
+# ------------------------------------------------------------------------------
+# Coordinate scaling
+# ------------------------------------------------------------------------------
+def scale_coordinates_radial(coords,ratio):
+    '''Coordinate scaling centered on 0'''
+    meanvals = np.mean(coords,axis=0)
+    coords = coords - [meanvals[0],meanvals[1],0]
+    (theta,rho,z) = cart2pol(rb.center_coordinates_3D(coords))
+    rho = rho * ratio
+    return pol2cart(theta,rho,z) + [meanvals[0],meanvals[1],0]
+def scale_coordinates_rectangular(coords,ratio):
+    minvals = np.min(coords,axis=0)
+    coords = coords - minvals # push to 0,0,0 for minima
+    coords[:,0:2] = coords[:,0:2] * ratio
+    return coords +  [minvals[0],minvals[1],0]
+def scale_coordinates_toroid(coords,current_range,new_range):
+    '''Radial coordinate scaling from one range of spaces to another'''
+    meanvals = np.mean(coords,axis=0)
+    coords = coords - [meanvals[0],meanvals[1],0]
+    (theta,rho,z) = cart2pol(rb.center_coordinates_3D(coords))
+    curr_range_size = current_range[1] - current_range[0]
+    midpoint  = (current_range[0] + current_range[1]) / 2
+    new_range_size  = new_range[1] - new_range[0]
+    ratio = new_range_size / curr_range_size
+    rho = (rho - midpoint)*ratio  + midpoint
+    return pol2cart(theta,rho,z) + [meanvals[0],meanvals[1],0]
+
+
 # ------------------------------------------------------------------------------
 # Main curving transformations
 # ------------------------------------------------------------------------------
 
 def cylindrical_transform(xyz_coords,r,outer_leaflet='top'):
     ''' Transforms a rectangular segment of coordinates into a cylinder with
-        given radius r. Completeness of cylinder will depend on length of x
-        dimension, y dimension is long axis of cylinder.
+        given radius r. Completeness of cylinder will depend on length of y
+        dimension, x dimension is long axis of cylinder.
 
     '''
-    xyz_coords = center_coordinates_3D(xyz_coords)
+    xyz_coords = rb.center_coordinates_3D(xyz_coords)
     radii = r + xyz_coords[:,2]
     offset_angle = np.pi / 2
     # calculate arc lengths, this is independent of z
-    arc_length = xyz_coords[:,0]
-    arc_length_angle = arc_length  /  r  + offset_angle
+    arc_length = xyz_coords[:,1]
+    arc_length_angle = arc_length  /  r
     # cylindrical transform
-    x_transform = radii * np.cos(arc_length_angle)
-    z_transform = radii * np.sin(arc_length_angle)
-    return np.stack((x_transform,xyz_coords[:,1],z_transform),axis=1)
+    y_transform = radii * np.sin(arc_length_angle)
+    z_transform = radii * np.cos(arc_length_angle)
+    return np.stack((xyz_coords[:,0],y_transform,z_transform),axis=1)
 
 def spherical_transform(xyz_coords,r,outer_leaflet='top'):
     ''' Transforms a circular segment of coordinates into a sphere with
@@ -75,16 +105,24 @@ def spherical_transform(xyz_coords,r,outer_leaflet='top'):
         bilayer patch.
 
     '''
-    xyz_coords = center_coordinates_3D(xyz_coords)
+    xyz_coords = rb.center_coordinates_3D(xyz_coords)
     (theta,rho,z) = cart2pol(xyz_coords)
 
-    radii = r + xyz_coords[:,2]
-    offset_angle = np.pi / 2
+    radii = r + z
     arc_length_angle = rho / r
-    rho_transform = radii * np.cos(arc_length_angle)
-    z_transform   = radii * np.sin(arc_length_angle)
+    rho_transform = radii * np.sin(arc_length_angle)
+    z_transform   = radii * np.cos(arc_length_angle)
     return pol2cart(theta,rho_transform,z_transform)
-
+def toroidal_transform(xyz_coords,r_torus,r_tube):
+    xyz_coords = rb.center_coordinates_3D(xyz_coords)
+    (theta,rho,z) = cart2pol(xyz_coords)
+    arc_length = rho - (r_torus - (np.pi * r_tube / 2))
+    arc_length_angle = arc_length / r_tube
+    radii = r_tube + z
+    z_transform = radii * np.sin(arc_length_angle)
+    rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi/2)
+    
+    return pol2cart(theta,rho_transform,z_transform)
 def junction_transform(xyz_coords,r_cylinder,r_junction):
     ''' Tranforms a section of bilayer into a hollow junction connecting
         orthogonal bilayer segments. Bilayer should be a hollowed disk.
@@ -95,7 +133,7 @@ def junction_transform(xyz_coords,r_cylinder,r_junction):
         top(in shapes), the BOTTOM leaflet will connect to the
         inner cylindrical species.
     '''
-    xyz_coords = center_coordinates_3D(xyz_coords)
+    xyz_coords = rb.center_coordinates_3D(xyz_coords)
     (theta,rho,z) = cart2pol(xyz_coords)
 
     r_max = r_cylinder + r_junction

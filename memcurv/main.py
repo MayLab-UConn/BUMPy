@@ -1,7 +1,7 @@
 ''' Main script for memcurv project'''
 
 from argparse import ArgumentParser
-import shapes
+import shapes2
 import molecules
 import nonrigid_coordinate_transformations as nrb
 import rigid_body_transforms as rb
@@ -68,8 +68,6 @@ def check_argument_sanity(cl_args):
                     'cylinder-pierced-sphere','semisphere-bilayer',
                     'semicylinder-bilayer','cylinder-bilayer']
     # list which parameters are applicable to shapes
-
-
     if cl_args.shape is None:
         print('Error: You must specify a shape using -s')
         return False
@@ -78,8 +76,19 @@ def check_argument_sanity(cl_args):
         return False
     return True
 
-# possible shape inputs
 
+def duplicate_flat_bilayer(bilayer_obj):
+    '''Duplicates a flat bilayer 3 times, appends to make a bilayer 4 times
+       the original size with same dimension ratios
+    '''
+    dimensions = bilayer_obj.get_current_dims()
+    x_plus  = bilayer_obj.slice_pdb(np.arange(0,len(bilayer_obj.atomno)))
+    y_plus  = bilayer_obj.slice_pdb(np.arange(0,len(bilayer_obj.atomno)))
+    xy_plus = bilayer_obj.slice_pdb(np.arange(0,len(bilayer_obj.atomno)))
+    x_plus.coords = x_plus.coords + [dimensions[0],0,0]
+    y_plus.coords = y_plus.coords + [0,dimensions[1],0]
+    xy_plus.coords = xy_plus_coords + [dimensions[0],dimensions[1],0]
+    return bilayer_obj.append_pdb(x_plus).append_pdb(y_plus).append_pdb(xy_plus)
 
 # -----------------------------------------------------------------------------
 # main commands, turn into function main() at end
@@ -91,6 +100,7 @@ if not check_argument_sanity(args): # exit early if there's an issue
     exit
 # determine which shape_assembly to call
 functions = {
+    'semisphere'             : shapes.semisphere,
     'sphere'                 : shapes.sphere,
     'cylinder'               : shapes.cylinder,
     'torus'                  : shapes.torus,
@@ -100,4 +110,7 @@ functions = {
     'semicylinder_bilayer'   : shapes.semicylinder_bilayer,
     'cylinder_bilayer'       : shapes.cylinder_bilayer
  }
-shape_tobuild = functions[args.shape](args)
+template_bilayer = molecules.Molecules(infile=args.bilayer)
+shape_tobuild = functions[args.shape](args,template_bilayer)
+pdb_out = shape_tobuild.gen_shape()
+pdb_out.write_pdb(args.o)

@@ -2,6 +2,8 @@
 
 import numpy as np
 import nonrigid_coordinate_transformations as nrb
+import rigid_body_transforms as rb
+import time
 
 class Molecules:
 
@@ -44,15 +46,15 @@ class Molecules:
            entire residue
         '''
         self.leaflets = np.empty_like(self.atomno)
+        bilayer_com = np.mean(self.coords[:,2])
+
         for i in self.resid_list.keys():
             res_indices = self.resid_list[i]
-            bilayer_com = np.mean(self.coords[:,2])
             res_com = np.mean(self.coords[res_indices,2])
             if res_com > bilayer_com:
                 self.leaflets[res_indices] = 1
             else:
                 self.leaflets[res_indices] = 0
-
 
     def renumber_atoms(self):
         ''' Renumber atoms from 1 to natoms'''
@@ -60,11 +62,16 @@ class Molecules:
 
     def renumber_resids(self):
         ''' Renumber residues from 1 to n_residues '''
-        counter = 1
-        for i in list(self.resid_list.keys()):
-            self.resid[self.resid_list[i]]= counter
-            counter += 1
-        self.assign_resid_list    # update resid_list
+        counter = 1                 # what new resid will be
+        i = 0                       # indexing variable
+        curr_resid = self.resid[i]  # check before overriding
+        while i < (self.resid.size):
+            self.resid[i]= counter
+            if (i+1) < self.resid.size:
+                if self.resid[i+1] != curr_resid:
+                    counter += 1
+                    curr_resid = self.resid[i+1]
+            i +=1
 
     def reorder_by_leaflet(self):
         new_index_order = np.append(np.where(self.leaflets == 1),
@@ -91,37 +98,40 @@ class Molecules:
         '''Renumbers atoms and resids according to leaflet, also recalculates
            organizational arrays
         '''
+        self.renumber_atoms()
+        self.renumber_resids()
         self.assign_resid_list()
         self.assign_leaflets()
         self.reorder_by_leaflet()
         self.renumber_atoms()
         self.renumber_resids()
+        self.assign_resid_list()
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
     def append_pdb(self,new_pdb):
         '''appends all information from new_pdb to end of current pdb '''
         # strings
-        atomtype = self.string_info['atomtype'].append(new_pdb.string_info['atomtype'])
-        atomname = self.string_info['atomname'].append(new_pdb.string_info['atomname'])
-        resname  = self.string_info['resname'].append(new_pdb.string_info['resname'])
-        chain    = self.string_info['chain'].append(new_pdb.string_info['chain'])
-        junk     = self.string_info['junk'].append(new_pdb.string_info['junk'])
-        self.string_info = {'atomtype':atomtype,'atomname':atomname,
-                            'resname':resname,'chain':chain,'junk':junk}
+        self.string_info['atomtype'].extend(new_pdb.string_info['atomtype'])
+        self.string_info['atomname'].extend(new_pdb.string_info['atomname'])
+        self.string_info['resname'].extend(new_pdb.string_info['resname'])
+        self.string_info['chain'].extend(new_pdb.string_info['chain'])
+        self.string_info['junk'].extend(new_pdb.string_info['junk'])
+
         # numpy arrays
         self.atomno   = np.append(self.atomno,new_pdb.atomno)
         self.resid    = np.append(self.resid, new_pdb.resid)
         self.coords   = np.vstack((self.coords,new_pdb.coords))
+        self.leaflets = np.append(self.leaflets,new_pdb.leaflets)
         # redo organizational arrays
         self.reorganize_components()
     def slice_pdb(self,slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
-        string_slice = {'atomtype':self.string_info['atomtype'][slice_indices],
-                        'atomname':self.string_info['atomname'][slice_indices],
-                        'resname' :self.string_info['resname' ][slice_indices],
-                        'chain'   :self.string_info['chain'   ][slice_indices],
-                        'junk'    :self.string_info['junk'    ][slice_indices]}
+        string_slice = {'atomtype':[self.string_info['atomtype'][i] for i in slice_indices],
+                        'atomname':[self.string_info['atomname'][i] for i in slice_indices],
+                        'resname' :[self.string_info['resname'][i]  for i in slice_indices],
+                        'chain'   :[self.string_info['chain'][i]    for i in slice_indices],
+                        'junk'    :[self.string_info['junk'][i]     for i in slice_indices]}
         molecule_slice = Molecules(infile=None,
                                    string_info=string_slice,
                                    atomno=self.atomno[  slice_indices],
@@ -135,6 +145,10 @@ class Molecules:
     # -------------------------------------------------------------------------
     # calculating geometric slices
     # -------------------------------------------------------------------------
+    def gen_random_slice_point(self,slice_r):
+        ''' Within boundaries, randomize slicing region'''
+        return np.mean(self.coords,axis=0)[0:2]
+
     def rectangular_slice(self,xvals,yvals,partial_molecule='exclude'):
         '''Slices pdb to include only rectangular segment from x[0] to x[1] and
            y[0] to y[1]. Default is to exclude partial molecules, have option to
@@ -147,38 +161,36 @@ class Molecules:
                                            (self.coords[:,0] < xvals[1]) &
                                            (self.coords[:,1] > yvals[0]) &
                                            (self.coords[:,1] < yvals[1]) ))
-        print(all_inrange)
         if partial_molecule == 'exclude':
-            print('excluding')
+            print('excluding partial molecules')
             for i in self.resid_list.keys():
                 resvals = np.array(self.resid_list[i])
                 keep = True
                 for j in resvals:
                     if not j in all_inrange: # every index of residue must be
                         keep = False         # in range
-                        print(j)
                         break
                 if keep:
                     indices_tokeep =np.append(indices_tokeep,np.array(resvals))
         return indices_tokeep
 
-    def circular_slice(self,center,radius,partial_molecule='exclude'):
+    def circular_slice(self,center,radius,exclude_radius=0,
+                       partial_molecule='exclude'):
         indices_tokeep = np.array([],dtype=int)
         centered_coords = self.coords - [center[0],center[1],0]
         (theta,rho,z) = nrb.cart2pol(centered_coords)
-        all_inrange = np.asarray(np.where(theta <= radius))
+        all_inrange = np.asarray(np.where((rho <= radius) & (rho>= exclude_radius)))
         if partial_molecule == 'exclude':
-            print('excluding')
             for i in self.resid_list.keys():
                 resvals = np.array(self.resid_list[i])
                 keep = True
                 for j in resvals:
                     if not j in all_inrange: # every index of residue must be
                         keep = False         # in range
-                        print(j)
                         break
                 if keep:
                     indices_tokeep =np.append(indices_tokeep,np.array(resvals))
+
         return indices_tokeep
 
     # -------------------------------------------------------------------------
@@ -189,6 +201,8 @@ class Molecules:
         '''Read input pdb, default is to renumber and reorderatoms and resids
            based on leaflets (top first)
         '''
+        print('Reading in PDB file')
+        t = time.time()
         fid = open(pdbfile,"r")
         # initialize temporary variables
         self.string_info ={'atomtype':[],'atomname':[],'resname':[],'chain':[],'junk':[]}
@@ -229,10 +243,14 @@ class Molecules:
         z = np.array(zcoord)
         self.coords = np.stack((x,y,z),axis=1)
         fid.close()   # test this?
+        print('Finished reading in PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(self.atomno.size,time.time()-t))
         if reorganize:
+            t = time.time(); print('Reformatting PDB input')
             self.reorganize_components()
-            
+            print('Finished formatting PDB input, time required = {:.1f} seconds'.format(time.time()-t))
     def write_pdb(self,outfile):
+        print('Writing out PDB file')
+        t = time.time()
         '''Outputs to pdb file, CRYST1 and ATOM lines only'''
         # will need modulus for atomno(max=99,999) AND resno (max = 9,999)
         fout = open(outfile,'w')
@@ -257,6 +275,8 @@ class Molecules:
                                    self.coords[i,2],
                                    self.string_info['junk'][i]))
         fout.close()
+        print('Finished writing PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(self.atomno.size,time.time()-t))
+
     def write_topology(self,outfile):
         '''Writes out simple topology file (.top)'''
         pass

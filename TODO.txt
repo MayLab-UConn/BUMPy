@@ -18,9 +18,6 @@ In main:
 In nonrigid_coordinate_transformations:
 --------------------------------------------------------------------------------
 
--centering coordinates has been moved to rigid_body_transformations, update the
- centering code in nonrigid_coordinate_transformations to access that module
--make coordinate_scaling function
 -junction_transform HAS NOT BEEN TESTED AT ALL, is probably totally broken
  --------------------------------------------------------------------------------
 In rigid_body_transformations:
@@ -57,10 +54,6 @@ In molecules:
 Involving multiple modules/flowthrough alterations:
 --------------------------------------------------------------------------------
 
--main should read in pdb, the feed to shape_assembly, rather than how it is now
- where shape assembly reads in pdb. This way, shape assembly can RETURN a
- Molecules instance, which aids in modularity and building-block mechanism of
- shape_assembly
 
 --------------------------------------------------------------------------------
 TESTING

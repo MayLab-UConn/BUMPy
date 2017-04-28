@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 import shapes2
-import molecules
+from molecules import Molecules
 import nonrigid_coordinate_transformations as nrb
 import rigid_body_transforms as rb
 

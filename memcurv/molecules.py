@@ -149,18 +149,26 @@ class Molecules:
         ''' Within boundaries, randomize slicing region'''
         return np.mean(self.coords,axis=0)[0:2]
 
-    def rectangular_slice(self,xvals,yvals,partial_molecule='exclude'):
+    def calc_residue_COMS(self):
+        n_res = np.unique(self.resid).size
+        res_coms = np.zeros((n_res+1,3)) # 0 will be empty
+        for i in self.resid_list.keys():
+            res_coms[i,:] = np.mean(self.coords[self.resid_list[i],:],axis=0)
+        return res_coms
+
+    def rectangular_slice(self,xvals,yvals,partial_molecule='res_coms'):
         '''Slices pdb to include only rectangular segment from x[0] to x[1] and
            y[0] to y[1]. Default is to exclude partial molecules, have option to
            include partial molecules or make whole and include.
 
            RETURNS INDICES, not actual slice
         '''
-        indices_tokeep = np.array([],dtype=int)
-        all_inrange = np.asarray(np.where( (self.coords[:,0] > xvals[0]) &
-                                           (self.coords[:,0] < xvals[1]) &
-                                           (self.coords[:,1] > yvals[0]) &
-                                           (self.coords[:,1] < yvals[1]) ))
+        res_coms = self.calc_residue_COMS()
+        indices_tokeep = []
+        all_inrange = np.asarray(np.where( (res_coms[:,0] > xvals[0]) &
+                                           (res_coms[:,0] < xvals[1]) &
+                                           (res_coms[:,1] > yvals[0]) &
+                                           (res_coms[:,1] < yvals[1]) ))
         if partial_molecule == 'exclude':
             print('excluding partial molecules')
             for i in self.resid_list.keys():
@@ -172,14 +180,22 @@ class Molecules:
                         break
                 if keep:
                     indices_tokeep =np.append(indices_tokeep,np.array(resvals))
-        return indices_tokeep
+
+        elif partial_molecule == 'res_com':
+                print('Excluding based on residue COM cutoff')
+                for i in all_inrange:
+                    if i:
+                        indices_tokeep.extend(self.resid_list[i])
+        return np.asarray(indices_tokeep)
 
     def circular_slice(self,center,radius,exclude_radius=0,
-                       partial_molecule='exclude'):
-        indices_tokeep = np.array([],dtype=int)
-        centered_coords = self.coords - [center[0],center[1],0]
+                       partial_molecule='res_com'):
+        indices_tokeep = []
+        res_coms = self.calc_residue_COMS()
+
+        centered_coords = res_coms - [center[0],center[1],0]
         (theta,rho,z) = nrb.cart2pol(centered_coords)
-        all_inrange = np.asarray(np.where((rho <= radius) & (rho>= exclude_radius)))
+        all_inrange = np.where((rho <= radius) & (rho>= exclude_radius))[0]
         if partial_molecule == 'exclude':
             for i in self.resid_list.keys():
                 resvals = np.array(self.resid_list[i])
@@ -190,8 +206,11 @@ class Molecules:
                         break
                 if keep:
                     indices_tokeep =np.append(indices_tokeep,np.array(resvals))
-
-        return indices_tokeep
+        elif partial_molecule == 'res_com':
+            print('Excluding based on residue COM cutoff')
+            for i in all_inrange:
+                indices_tokeep.extend(self.resid_list[i])
+        return np.asarray(indices_tokeep)
 
     # -------------------------------------------------------------------------
     # file i/o

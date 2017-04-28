@@ -119,8 +119,7 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
-        top_leaflet.write_pdb('top_prescaled.pdb')
-        bot_leaflet.write_pdb('bot_prescaled.pdb')
+
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_toroid(top_leaflet.coords,
                              [outer_slice_min,outer_slice_max],
@@ -128,11 +127,9 @@ class shapes:
         bot_leaflet.coords = nrb.scale_coordinates_toroid(bot_leaflet.coords,
                              [inner_slice_min,inner_slice_max],
                              [slice_min,slice_max])
-        top_leaflet.write_pdb('top_scaled.pdb')
-        bot_leaflet.write_pdb('bot_scaled.pdb')
+
 
         top_leaflet.append_pdb(bot_leaflet)
-        top_leaflet.write_pdb('merge.pdb')
         top_leaflet.coords = nrb.toroidal_transform(top_leaflet.coords,r_torus,r_tube)
         return top_leaflet
     def torus(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):

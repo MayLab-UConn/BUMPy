@@ -156,7 +156,7 @@ class Molecules:
             res_coms[i,:] = np.mean(self.coords[self.resid_list[i],:],axis=0)
         return res_coms
 
-    def rectangular_slice(self,xvals,yvals,partial_molecule='res_coms'):
+    def rectangular_slice(self,xvals,yvals,partial_molecule='res_com'):
         '''Slices pdb to include only rectangular segment from x[0] to x[1] and
            y[0] to y[1]. Default is to exclude partial molecules, have option to
            include partial molecules or make whole and include.
@@ -168,7 +168,7 @@ class Molecules:
         all_inrange = np.asarray(np.where( (res_coms[:,0] > xvals[0]) &
                                            (res_coms[:,0] < xvals[1]) &
                                            (res_coms[:,1] > yvals[0]) &
-                                           (res_coms[:,1] < yvals[1]) ))
+                                           (res_coms[:,1] < yvals[1]) ))[0]
         if partial_molecule == 'exclude':
             print('excluding partial molecules')
             for i in self.resid_list.keys():
@@ -184,8 +184,7 @@ class Molecules:
         elif partial_molecule == 'res_com':
                 print('Excluding based on residue COM cutoff')
                 for i in all_inrange:
-                    if i:
-                        indices_tokeep.extend(self.resid_list[i])
+                    indices_tokeep.extend(self.resid_list[i])
         return np.asarray(indices_tokeep)
 
     def circular_slice(self,center,radius,exclude_radius=0,

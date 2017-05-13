@@ -42,6 +42,7 @@ class shapes:
         top_leaflet.append_pdb(bot_leaflet)
         top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords,r_sphere)
         return top_leaflet
+
     def sphere(template_bilayer,r_sphere,thickness,n_holes=0):
         # check for holes
         if n_holes == 0:
@@ -68,7 +69,7 @@ class shapes:
         cylinder_slice_length = 2 * np.pi * r_cylinder * completeness
         slice_origin = np.min(template_bilayer.coords,axis=0)[0:2]+[20,20]
         outer_slice_length = 2 * np.pi * (r_cylinder + (thickness/2)) * completeness
-        inner_slice_length = 2 * np.pi * (r_cylinder + (thickness/2)) * completeness
+        inner_slice_length = 2 * np.pi * (r_cylinder - (thickness/2)) * completeness
         # calculate slice indices
         xvals = [slice_origin[0],slice_origin[0] + l_cylinder]
         yvals_outer = [slice_origin[1],slice_origin[1] + outer_slice_length]
@@ -88,8 +89,9 @@ class shapes:
         bot_leaflet.coords = nrb.scale_coordinates_rectangular(
                              bot_leaflet.coords,[1,cylinder_slice_length/inner_slice_length])
         top_leaflet.append_pdb(bot_leaflet)
-        top_leaflet.coords = nrb.cylindrical_transform(top_leaflet.coords,r_cylinder)
+        top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
         return top_leaflet
+
     def half_torus(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
         '''Makes a half torus with given parameters,
         for radial junction set completeness = 0.25 (quarter turn)
@@ -132,9 +134,45 @@ class shapes:
         top_leaflet.append_pdb(bot_leaflet)
         top_leaflet.coords = nrb.toroidal_transform(top_leaflet.coords,r_torus,r_tube)
         return top_leaflet
+
     def torus(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
         top_half = shapes.half_torus(template_bilayer,r_torus,r_tube,thickness)
         bot_half = copy(top_half)
         bot_half.coords = rb.rotate_coordinates(bot_half.coords,[180,0,0])
         top_half.append_pdb(bot_half)
         return top_half
+
+    def semicylinder_plane(template_bilayer,r_cylinder,l_cylinder,r_junction,
+                           thickness,area_matching=True):
+        semicyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,
+                                 thickness, completeness=0.5)
+        semicyl.write_pdb('semi.pdb')
+        junction = shapes.cylinder(template_bilayer,r_junction,l_cylinder,
+                                 thickness, completeness=0.25)
+        # rotate to get first junction facing correctly (positive y side)
+        junction.coords = rb.rotate_coordinates(junction.coords,[135,0,0])
+        junction.write_pdb('junction.pdb')
+        junction2 = copy(junction)
+        # rotate second one from 1st (negative y side)
+        junction2.coords = rb.rotate_coordinates(junction2.coords,[90,0,0])
+        junction2.write_pdb('junction2.pdb')
+        # translate, max of junction will be at 0, so z is set already
+        junction.coords[:,1] =  junction.coords[:,1]  - ( r_junction + r_cylinder)
+        junction2.coords[:,1] = junction2.coords[:,1] + ( r_junction + r_cylinder)
+
+        if area_matching:
+            # flat section will be size of xdim, ydim is arc length of cylinder
+            y_flat = np.pi * r_cylinder
+            flat_slice = template_bilayer.slice_pdb(
+                         template_bilayer.rectangular_slice(
+                         [20 ,l_cylinder + 20],[20, y_flat + 20]))
+            flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords,axis=0)
+            flat_slice.write_pdb('flat_slice.pdb')
+        # translate flat slice, down r_junction in z direction,
+        # in y direction, +rj + rc+ half of own dimension
+        flat_slice.coords[:,1] = flat_slice.coords[:,1] +  r_junction + r_cylinder + (y_flat/2)
+        flat_slice.coords[:,2] = flat_slice.coords[:,2] - r_junction
+        semicyl.append_pdb(junction)
+        semicyl.append_pdb(junction2)
+        semicyl.append_pdb(flat_slice)
+        return semicyl

@@ -62,7 +62,7 @@ def scale_coordinates_radial(coords,ratio):
     return pol2cart(theta,rho,z) + [meanvals[0],meanvals[1],0]
 def scale_coordinates_rectangular(coords,ratio):
     minvals = np.min(coords,axis=0)
-    coords = coords - minvals # push to 0,0,0 for minima
+    coords = coords - [minvals[0], minvals[1],0] # push to 0,0,0 for minima
     coords[:,0:2] = coords[:,0:2] * ratio
     return coords +  [minvals[0],minvals[1],0]
 def scale_coordinates_toroid(coords,current_range,new_range):
@@ -121,7 +121,7 @@ def toroidal_transform(xyz_coords,r_torus,r_tube):
     radii = r_tube + z
     z_transform = radii * np.sin(arc_length_angle)
     rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi/2)
-    
+
     return pol2cart(theta,rho_transform,z_transform)
 def junction_transform(xyz_coords,r_cylinder,r_junction):
     ''' Tranforms a section of bilayer into a hollow junction connecting

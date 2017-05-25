@@ -10,8 +10,13 @@ import nonrigid_coordinate_transformations as nrb
 from copy import deepcopy,copy
 
 class shapes:
-    def parse_commands():
-        pass
+    def gen_shape(args,bilayer):
+        if args.shape == 'sphere':
+            return shapes.sphere(bilayer,args.r_sphere,args.thickness)
+        elif args.shape == 'cylinder':
+            return shapes.cylinder(bilayer,args.r_cylinder,args.cylinder_length,args.thickness)
+        else:
+            pass
 
     def semisphere(template_bilayer,r_sphere,thickness,contains_hole=False,
                    completeness=1):
@@ -22,10 +27,8 @@ class shapes:
         bot_slice_radius = np.pi * (r_sphere - (thickness/2)) / 2
         slice_origin = template_bilayer.gen_random_slice_point(top_slice_radius)
         # calculate slice indices
-        in_top_circular_slice = template_bilayer.circular_slice(slice_origin,
-                                top_slice_radius)
-        in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,
-                                bot_slice_radius)
+        in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
+        in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,bot_slice_radius)
         top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
         bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
         # make slices

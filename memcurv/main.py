@@ -43,7 +43,7 @@ def parse_command_lines():
     optional_arguments.add_argument('-h','--help', action='help',
                              help='show this help message and exit')
     optional_arguments.add_argument('--outer_leaflet',default='top')
-    optional_arguments.add_argument('--thickness')
+    optional_arguments.add_argument('--thickness',type=float)
     optional_arguments.add_argument('--area_matching_method',default='scaling')
     optional_arguments.add_argument('-uapl','--upper_area_per_lipid')
     optional_arguments.add_argument('-lapl','--lower_area_per_lipid')
@@ -96,21 +96,22 @@ def duplicate_flat_bilayer(bilayer_obj):
 print('Parsing command line arguments\n')
 args = parse_command_lines()
 display_parameters(args)  # show user what they selected
-if not check_argument_sanity(args): # exit early if there's an issue
-    exit
+#if not check_argument_sanity(args): # exit early if there's an issue#
+#    exit
 # determine which shape_assembly to call
-functions = {
-    'semisphere'             : shapes.semisphere,
-    'sphere'                 : shapes.sphere,
-    'cylinder'               : shapes.cylinder,
-    'torus'                  : shapes.torus,
-    'spherocylinder'         : shapes.spherocylinder,
-    'cylinder_pierced_sphere': shapes.cylinder_pierced_sphere,
-    'semisphere_bilayer'     : shapes.semisphere_bilayer,
-    'semicylinder_bilayer'   : shapes.semicylinder_bilayer,
-    'cylinder_bilayer'       : shapes.cylinder_bilayer
- }
-template_bilayer = molecules.Molecules(infile=args.bilayer)
-shape_tobuild = functions[args.shape](args,template_bilayer)
-pdb_out = shape_tobuild.gen_shape()
-pdb_out.write_pdb(args.o)
+#functions = {
+#    'semisphere'             : shapes.semisphere,
+#    'sphere'                 : shapes.sphere,
+#    'cylinder'               : shapes.cylinder,
+#    'torus'                  : shapes.torus,
+#    'spherocylinder'         : shapes.spherocylinder,
+#    'cylinder_pierced_sphere': shapes.cylinder_pierced_sphere,
+#    'semisphere_bilayer'     : shapes.semisphere_bilayer,
+#    'semicylinder_bilayer'   : shapes.semicylinder_bilayer,
+#    'cylinder_bilayer'       : shapes.cylinder_bilayer
+ #}
+template_bilayer = Molecules(infile=args.bilayer)
+shape_tobuild = shapes2.shapes.gen_shape(args,template_bilayer)
+shape_tobuild.write_pdb(args.o)
+shape_tobuild.write_topology(args.p)
+shape_tobuild.write_index(args.n)

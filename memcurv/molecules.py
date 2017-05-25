@@ -101,8 +101,8 @@ class Molecules:
         self.renumber_atoms()
         self.renumber_resids()
         self.assign_resid_list()
-        self.assign_leaflets()
-        self.reorder_by_leaflet()
+        self.assign_leaflets()   # need resid list for this
+        self.reorder_by_leaflet()# reorder here, then repeat organization process
         self.renumber_atoms()
         self.renumber_resids()
         self.assign_resid_list()
@@ -237,7 +237,7 @@ class Molecules:
                 # strings
                 self.string_info['atomtype'].append(pdb_line[ 0: 6])
                 self.string_info['atomname'].append(pdb_line[12:16])
-                self.string_info['resname'].append( pdb_line[16:21])
+                self.string_info['resname'].append( pdb_line[17:21])
                 self.string_info['chain'].append(   pdb_line[21:22])
                 self.string_info['junk'].append(    pdb_line[54:  ])
                 # integers
@@ -280,15 +280,15 @@ class Molecules:
         fout.write(line + '\n')
 
         for i in range(nparts):
-            line =("{:6s}{:5d} {:^4s}{:1s}{:3s} {:1s}{:4d}{:1s} "
+            line =("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}   "
                   + "{:8.3f}{:8.3f}{:8.3f}{:s}")
             fout.write(line.format(self.string_info['atomtype'][i],
                                    np.mod(self.atomno[i],100000), # cap at 10^5
                                    self.string_info['atomname'][i],
-                                   " ", self.string_info['resname'][i],
+                                   self.string_info['resname'][i],
                                    self.string_info['chain'][i],
                                    np.mod(self.resid[i],10000),   # cap at 10^4
-                                   " ", self.coords[i,0],
+                                   self.coords[i,0],
                                    self.coords[i,1],
                                    self.coords[i,2],
                                    self.string_info['junk'][i]))
@@ -297,7 +297,19 @@ class Molecules:
 
     def write_topology(self,outfile):
         '''Writes out simple topology file (.top)'''
-        pass
+        fout = open(outfile,'w')
+        fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
+        count = 1
+        curr_res = self.string_info['resname'][0]
+        for res in self.string_info['resname']:
+            if res == curr_res:
+                count += 1
+            else:
+                fout.write("{:4s} {:d}\n".format(curr_res,count))
+                count = 1
+                curr_res = res
+
+
     def write_index(self,outfile):
         '''Writes out index file (.ndx) with the following (hopefully useful)
            fields:
@@ -307,4 +319,21 @@ class Molecules:
                     -bot_leaflet
                     -bot_leaflet_componenet_1...
         '''
-        pass
+        def write_index_unit(print_obj,name,indices):
+            print_obj.write("[ {:s} ]\n".format(name))
+            count = 1
+            for i in indices:
+                print_obj.write("{:d} ".format(i))
+                count += 1
+                if count > 15:  # 15 numbers per line
+                    count = 1
+                    print_obj.write("\n")
+            print_obj.write("\n\n")
+
+        fout = open(outfile,'w')
+        top_atomno = self.atomno[self.leaflets == 1]
+        bot_atomno = self.atomno[self.leaflets == 0]
+        write_index_unit(fout,"top leaflet",top_atomno)
+        write_index_unit(fout,"bot leaflet",bot_atomno)
+        #for i in list(set(self.resname)):
+            # this is where individual residues would go

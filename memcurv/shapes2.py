@@ -12,8 +12,10 @@ from copy import deepcopy,copy
 class shapes:
     def gen_shape(args,bilayer):
         if args.shape == 'sphere':
+            print('Making sphere with:\nradius={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_sphere,args.thickness))
             return shapes.sphere(bilayer,args.r_sphere,args.thickness)
         elif args.shape == 'cylinder':
+            print('Making sphere with:\nradius={:f} Angstroms\nlength={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_cylinder,args.cylinder_length,args.thickness))
             return shapes.cylinder(bilayer,args.r_cylinder,args.cylinder_length,args.thickness)
         else:
             pass
@@ -58,7 +60,7 @@ class shapes:
         top_half = shapes.semisphere(template_bilayer,r_sphere,thickness,False)
         bot_half = copy(top_half)
         bot_half.coords = rb.rotate_coordinates(bot_half.coords,[180,0,0])
-        top_half.append_pdb(bot_half)
+        top_half.append_pdb(bot_half,preserve_leaflets=True)
         return top_half
 
     def cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
@@ -70,7 +72,7 @@ class shapes:
         '''
         # calculate slice lengths
         cylinder_slice_length = 2 * np.pi * r_cylinder * completeness
-        slice_origin = np.min(template_bilayer.coords,axis=0)[0:2]+[20,20]
+        slice_origin = np.min(template_bilayer.coords,axis=0)[0:2]+40
         outer_slice_length = 2 * np.pi * (r_cylinder + (thickness/2)) * completeness
         inner_slice_length = 2 * np.pi * (r_cylinder - (thickness/2)) * completeness
         # calculate slice indices

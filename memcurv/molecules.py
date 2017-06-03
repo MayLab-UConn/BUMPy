@@ -94,14 +94,15 @@ class Molecules:
         for i in range(0,len(self.atomno)):
             self.resid_list[self.resid[i]].append(i)
 
-    def reorganize_components(self):
+    def reorganize_components(self,preserve_leaflets=False):
         '''Renumbers atoms and resids according to leaflet, also recalculates
            organizational arrays
         '''
         self.renumber_atoms()
         self.renumber_resids()
         self.assign_resid_list()
-        self.assign_leaflets()   # need resid list for this
+        if not preserve_leaflets:
+            self.assign_leaflets()   # need resid list for this
         self.reorder_by_leaflet()# reorder here, then repeat organization process
         self.renumber_atoms()
         self.renumber_resids()
@@ -109,7 +110,7 @@ class Molecules:
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
-    def append_pdb(self,new_pdb):
+    def append_pdb(self,new_pdb,preserve_leaflets=False):
         '''appends all information from new_pdb to end of current pdb '''
         # strings
         self.string_info['atomtype'].extend(new_pdb.string_info['atomtype'])
@@ -124,7 +125,7 @@ class Molecules:
         self.coords   = np.vstack((self.coords,new_pdb.coords))
         self.leaflets = np.append(self.leaflets,new_pdb.leaflets)
         # redo organizational arrays
-        self.reorganize_components()
+        self.reorganize_components(preserve_leaflets)
     def slice_pdb(self,slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
         string_slice = {'atomtype':[self.string_info['atomtype'][i] for i in slice_indices],
@@ -266,12 +267,17 @@ class Molecules:
             t = time.time(); print('Reformatting PDB input')
             self.reorganize_components()
             print('Finished formatting PDB input, time required = {:.1f} seconds'.format(time.time()-t))
-    def write_pdb(self,outfile):
+    def write_pdb(self,outfile,pos=True):
         print('Writing out PDB file')
         t = time.time()
         '''Outputs to pdb file, CRYST1 and ATOM lines only'''
         # will need modulus for atomno(max=99,999) AND resno (max = 9,999)
         fout = open(outfile,'w')
+
+        # bring everything to positive regime, allows for up to 9999 angstroms
+        # in PDB file format
+        if pos:
+            self.coords = self.coords -np.min(self.coords,axis=0)
         nparts = len(self.atomno)
         dims = self.get_current_dims()
         # write out box dims
@@ -280,7 +286,7 @@ class Molecules:
         fout.write(line + '\n')
 
         for i in range(nparts):
-            line =("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}   "
+            line =("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}    "
                   + "{:8.3f}{:8.3f}{:8.3f}{:s}")
             fout.write(line.format(self.string_info['atomtype'][i],
                                    np.mod(self.atomno[i],100000), # cap at 10^5
@@ -300,19 +306,29 @@ class Molecules:
         fout = open(outfile,'w')
         fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
         count = 1
+        checker = 0
         curr_res = self.string_info['resname'][0]
-        for res in self.string_info['resname']:
-            if res == curr_res:
-                count += 1
-            else:
-                fout.write("{:4s} {:d}\n".format(curr_res,count))
-                count = 1
-                curr_res = res
+        curr_resid= self.resid[0]
+        for i in np.arange(self.resid.size):
+            if self.resid[i] != curr_resid:
+                res = self.string_info['resname'][i]
 
+                if res == curr_res:
+                    count += 1
+                    curr_resid = self.resid[i]
+                else:
+                    fout.write("{:4s} {:d}\n".format(curr_res,count))
+                    count = 1
+                    curr_res = res
+                    curr_resid = self.resid[i]
+        fout.write("{:4s} {:d}\n".format(curr_res,count))
+        fout.close()
+        print(checker)
 
-    def write_index(self,outfile):
+    def write_index(self,outfile,special_groups=None):
         '''Writes out index file (.ndx) with the following (hopefully useful)
            fields:
+                    -system
                     -top_leaflet
                     -top_leaflet_component_1
                     -top_leaflet_component_2...
@@ -333,7 +349,12 @@ class Molecules:
         fout = open(outfile,'w')
         top_atomno = self.atomno[self.leaflets == 1]
         bot_atomno = self.atomno[self.leaflets == 0]
+        write_index_unit(fout,"system",self.atomno)
         write_index_unit(fout,"top leaflet",top_atomno)
         write_index_unit(fout,"bot leaflet",bot_atomno)
+        #if special_groups is not None:
+        #        for name in special_groups:
+        #            name_indices =
         #for i in list(set(self.resname)):
             # this is where individual residues would go
+        fout.close()

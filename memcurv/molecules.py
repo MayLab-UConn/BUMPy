@@ -39,8 +39,7 @@ class Molecules:
             max second row
         '''
         return np.vstack((np.min(self.coords,axis=0),np.max(self.coords,axis=0)))
-    def calc_thickness(self):
-        pass
+
     def assign_leaflets(self):
         ''' Labels indices as top (1) or bottom (0) leaflet based on COM of
            entire residue
@@ -225,14 +224,8 @@ class Molecules:
         fid = open(pdbfile,"r")
         # initialize temporary variables
         self.string_info ={'atomtype':[],'atomname':[],'resname':[],'chain':[],'junk':[]}
-        atomnum = []
-        resnum  = []
-        xcoord  = []
-        ycoord  = []
-        zcoord  = []
-        toadd_resid = 0
-        toadd_atomno= 0
-        prev_res = []
+        resnum = []; xcoord = []; ycoord = []; zcoord = []; prev_res = []
+        residcount = 0; prev_res = []
         for pdb_line in fid:
             if pdb_line.startswith("ATOM") or pdb_line.startswith("HETATM"):
                 # strings
@@ -241,22 +234,20 @@ class Molecules:
                 self.string_info['resname'].append( pdb_line[17:21])
                 self.string_info['chain'].append(   pdb_line[21:22])
                 self.string_info['junk'].append(    pdb_line[54:  ])
-                # integers
-                atomnum.append(int(pdb_line[ 6:11]) + toadd_atomno)
-                resnum.append( int(pdb_line[22:26]) + toadd_resid)
-                # account for pdb truncation
-                if pdb_line[6:11]   == '99999':
-                    toadd_atomno += 100000
-                if pdb_line[22:26]  == '9999' and pdb_line[22:26] != prev_res:
-                    toadd_resid  += 10000
+                # atomno and resno, have to reset
+                curr_res = int(pdb_line[22:26])
+                if curr_res != prev_res:
+                    residcount += 1
+                    prev_res = curr_res
+                resnum.append(residcount)
+
                 # floats for coordinate array
                 xcoord.append(float(pdb_line[30:38]))
                 ycoord.append(float(pdb_line[38:46]))
                 zcoord.append(float(pdb_line[46:54]))
-                prev_res = pdb_line[22:26]
         # now turn numbers into numpy
-        self.atomno = np.array(atomnum)
         self.resid =  np.array(resnum)
+        self.atomno = np.arange(self.resid.size) + 1
         x = np.array(xcoord) # this is a stupid way to concatenate things,
         y = np.array(ycoord) # but I suck with lists
         z = np.array(zcoord)
@@ -267,7 +258,8 @@ class Molecules:
             t = time.time(); print('Reformatting PDB input')
             self.reorganize_components()
             print('Finished formatting PDB input, time required = {:.1f} seconds'.format(time.time()-t))
-    def write_pdb(self,outfile,pos=True):
+
+    def write_pdb(self,outfile,position='positive'):
         print('Writing out PDB file')
         t = time.time()
         '''Outputs to pdb file, CRYST1 and ATOM lines only'''
@@ -276,8 +268,18 @@ class Molecules:
 
         # bring everything to positive regime, allows for up to 9999 angstroms
         # in PDB file format
-        if pos:
-            self.coords = self.coords -np.min(self.coords,axis=0)
+        if position == 'positive':
+            out_coords = np.copy(self.coords -np.min(self.coords,axis=0))
+        elif position == 'positive_xy':
+            out_coords = np.copy(self.coords)
+            out_coords[:,0:2] = out_coords[:,0:2] - np.min(out_coords[:,0:2],axis=0)
+        elif position == 'center':
+            out_coords = np.copy(self.coords - np.mean(self.coords,axis=0))
+        elif position == 'center_xy':
+            out_coords = np.copy(self.coords)
+            out_coords[:,0:2] = out_coords[:,0:2] - np.mean(out_coords[:,0:2],axis=0)
+        else:
+            out_coords = np.copy(self.coords)
         nparts = len(self.atomno)
         dims = self.get_current_dims()
         # write out box dims
@@ -294,9 +296,9 @@ class Molecules:
                                    self.string_info['resname'][i],
                                    self.string_info['chain'][i],
                                    np.mod(self.resid[i],10000),   # cap at 10^4
-                                   self.coords[i,0],
-                                   self.coords[i,1],
-                                   self.coords[i,2],
+                                   out_coords[i,0],
+                                   out_coords[i,1],
+                                   out_coords[i,2],
                                    self.string_info['junk'][i]))
         fout.close()
         print('Finished writing PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(self.atomno.size,time.time()-t))

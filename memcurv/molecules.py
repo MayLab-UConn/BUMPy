@@ -1,14 +1,14 @@
 ''' Molecules class has coordinates, pdb i/o stuff, manipulation'''
 
 import numpy as np
+import pandas as pd
 import nonrigid_coordinate_transformations as nrb
 import rigid_body_transforms as rb
 import time
 
 class Molecules:
 
-    def __init__(self,infile=None,string_info=[],atomno=[],resid=[],coords=[],
-                 leaflets=[],resid_list=[]):
+    def __init__(self,infile=None,metadata=[],coords=[]):
         '''Can initialize from file, or with manual inputs (like when slicing).
            Can also initialize with all objects blank, and wait for input
         '''
@@ -18,13 +18,13 @@ class Molecules:
         # assign manually
         else:
             self.string_info = string_info  # dictionary, nparts size
-            self.atomno    = atomno     #  np int,
-            self.resid     = resid      #  np int,
-            self.coords    = coords     # np float, 3D array of nparts * xyz
+            self.atomno      = atomno     #  np int,
+            self.resid       = resid      #  np int,
+            self.coords      = coords     # np float, 3D array of nparts * xyz
             # organizational variables
-            self.leaflets  = leaflets   # 1 for top, 0 for bot
-            self.resid_list= resid_list # nres size dictionary
-
+            self.leaflets    = leaflets   # 1 for top, 0 for bot
+            self.resid_list  = resid_list # nres size dictionary
+            self.metadata    = metadata
 
     # -------------------------------------------------------------------------
     # Calculate and superficially change dataset properties
@@ -44,23 +44,22 @@ class Molecules:
         ''' Labels indices as top (1) or bottom (0) leaflet based on COM of
            entire residue
         '''
-        self.leaflets = np.empty_like(self.atomno)
         bilayer_com = np.mean(self.coords[:,2])
+        leaflets    = np.zeros(self.coords.shape[0],dtype=int)
+        res_starts  = np.where(self.metadata['resid_length'] > 0)[0]
+        res_lengths = self.metadata.loc[res_starts,'resid_length']
 
-        for i in self.resid_list.keys():
-            res_indices = self.resid_list[i]
-            res_com = np.mean(self.coords[res_indices,2])
+        for index,length in zip(res_starts,res_lengths):
+            resrange = np.arange(index,index+length)
+            res_com = np.mean(self.coords[resrange,2])
             if res_com > bilayer_com:
-                self.leaflets[res_indices] = 1
-            else:
-                self.leaflets[res_indices] = 0
+                leaflets[resrange] = 1 # else already 0
+        self.metadata['leaflets'] = leaflets
 
-    def renumber_atoms(self):
-        ''' Renumber atoms from 1 to natoms'''
-        self.atomno = np.arange(1,self.atomno.size + 1)
 
     def renumber_resids(self):
         ''' Renumber residues from 1 to n_residues '''
+        '''
         counter = 1                 # what new resid will be
         i = 0                       # indexing variable
         curr_resid = self.resid[i]  # check before overriding
@@ -71,72 +70,61 @@ class Molecules:
                     counter += 1
                     curr_resid = self.resid[i+1]
             i +=1
+        '''
+        reslist_ind = np.where(self.metadata.resid_length > 0)[0]
+        lengths     = self.metadata.resid_length[reslist_ind]
+        counts = list(range(1,reslist_ind.size+1))
+        new_resids = np.zeros(self.metadata.resid_length.size,dtype=int)
+        for ind,l_ind,count in zip(reslist_ind,lengths,counts):
+            new_resids[ind:ind+l_ind] = count
+        self.metadata.resid = new_resids
+
 
     def reorder_by_leaflet(self):
         new_index_order = np.append(np.where(self.leaflets == 1),
                                     np.where(self.leaflets == 0))
         self.coords = self.coords[new_index_order,:]
-        self.atomno = self.atomno[new_index_order]
-        self.resid =  self.resid[new_index_order]
-        self.leaflets = self.leaflets[new_index_order]
-        self.string_info['atomtype'] = [self.string_info['atomtype'][i] for i in new_index_order]
-        self.string_info['atomname'] = [self.string_info['atomname'][i] for i in new_index_order]
-        self.string_info['resname'] =  [self.string_info['resname'][i]  for i in new_index_order]
-        self.string_info['chain'] =    [self.string_info['chain'][i]    for i in new_index_order]
-        self.string_info['junk'] =     [self.string_info['junk'][i]     for i in new_index_order]
+        self.metadata.reindex(new_index_order)
 
     def assign_resid_list(self,wipe=True):
-        if wipe:
-            self.resid_list = dict()                   # start from scratch
-            for i in np.unique(self.resid):
-                self.resid_list[i] = []
-        for i in range(0,len(self.atomno)):
-            self.resid_list[self.resid[i]].append(i)
+        resid_list,resid_start,resid_length = np.unique(self.metadata['resid'],
+                                              return_index=True,
+                                              return_counts=True)
+        self.metadata.loc[resid_start,'resid_length'] = resid_length
 
-    def reorganize_components(self,preserve_leaflets=False):
+    def gen_resid_list(self):
+        reslist_ind = np.where(self.metadata.resid_length > 0)[0]
+        lengths = self.metadata.resid_length[reslist_ind]
+        self.resid_list = [list(range(ind,ind +l_ind)) for ind,l_ind in zip(reslist_ind,lengths)]
+
+
+    def reorganize_components(self,reset_leaflets=False,reorder_by_leaflets=True,
+                              renumber_resids=True):
         '''Renumbers atoms and resids according to leaflet, also recalculates
            organizational arrays
         '''
-        self.renumber_atoms()
-        self.renumber_resids()
-        self.assign_resid_list()
-        if not preserve_leaflets:
+        if reset_leaflets:
             self.assign_leaflets()   # need resid list for this
-        self.reorder_by_leaflet()# reorder here, then repeat organization process
-        self.renumber_atoms()
-        self.renumber_resids()
-        self.assign_resid_list()
+        if reorder_by_leaflets:
+            self.reorder_by_leaflet()
+        if renumber_resids:
+            self.renumber_resids()
+        self.gen_resid_list()
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
     def append_pdb(self,new_pdb,preserve_leaflets=False):
         '''appends all information from new_pdb to end of current pdb '''
         # strings
-        self.string_info['atomtype'].extend(new_pdb.string_info['atomtype'])
-        self.string_info['atomname'].extend(new_pdb.string_info['atomname'])
-        self.string_info['resname'].extend(new_pdb.string_info['resname'])
-        self.string_info['chain'].extend(new_pdb.string_info['chain'])
-        self.string_info['junk'].extend(new_pdb.string_info['junk'])
-
-        # numpy arrays
-        self.atomno   = np.append(self.atomno,new_pdb.atomno)
-        self.resid    = np.append(self.resid, new_pdb.resid)
+        self.metadata.append(new_pdb.metadata)
         self.coords   = np.vstack((self.coords,new_pdb.coords))
-        self.leaflets = np.append(self.leaflets,new_pdb.leaflets)
         # redo organizational arrays
         self.reorganize_components(preserve_leaflets)
     def slice_pdb(self,slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
-        string_slice = {'atomtype':[self.string_info['atomtype'][i] for i in slice_indices],
-                        'atomname':[self.string_info['atomname'][i] for i in slice_indices],
-                        'resname' :[self.string_info['resname'][i]  for i in slice_indices],
-                        'chain'   :[self.string_info['chain'][i]    for i in slice_indices],
-                        'junk'    :[self.string_info['junk'][i]     for i in slice_indices]}
+        metadata_slice = self.metadata.iloc[slice_indices]
         molecule_slice = Molecules(infile=None,
-                                   string_info=string_slice,
-                                   atomno=self.atomno[  slice_indices],
-                                   resid=self.resid[   slice_indices],
-                                   leaflets=self.leaflets[slice_indices],
+                                   metadata=metadata_slice,
                                    coords=self.coords[  slice_indices,:])
         molecule_slice.reorganize_components()
         return molecule_slice
@@ -150,9 +138,9 @@ class Molecules:
         return np.mean(self.coords,axis=0)[0:2]
 
     def calc_residue_COMS(self):
-        n_res = np.unique(self.resid).size
-        res_coms = np.zeros((n_res+1,3)) # 0 will be empty
-        for i in self.resid_list.keys():
+        n_res = np.unique(self.metadata.resid).size
+        res_coms = np.zeros((n_res,3)) # 0 will be empty
+        for i in range(n_res):
             res_coms[i,:] = np.mean(self.coords[self.resid_list[i],:],axis=0)
         return res_coms
 
@@ -171,7 +159,7 @@ class Molecules:
                                            (res_coms[:,1] < yvals[1]) ))[0]
         if partial_molecule == 'exclude':
             print('excluding partial molecules')
-            for i in self.resid_list.keys():
+            for i in range(len(self.resid_list)):
                 resvals = np.array(self.resid_list[i])
                 keep = True
                 for j in resvals:
@@ -196,7 +184,7 @@ class Molecules:
         (theta,rho,z) = nrb.cart2pol(centered_coords)
         all_inrange = np.where((rho <= radius) & (rho>= exclude_radius))[0]
         if partial_molecule == 'exclude':
-            for i in self.resid_list.keys():
+            for i in range(res_coms.size):
                 resvals = np.array(self.resid_list[i])
                 keep = True
                 for j in resvals:
@@ -214,29 +202,32 @@ class Molecules:
     # -------------------------------------------------------------------------
     # file i/o
     # -------------------------------------------------------------------------
-
-    def read_pdb(self,pdbfile,reorganize=True):
-        '''Read input pdb, default is to renumber and reorderatoms and resids
+    def read_pdb(self,pdbfile,reorganize=False):
+        '''Read input pdb, default is to renumber and reorder atoms and resids
            based on leaflets (top first)
         '''
         print('Reading in PDB file')
         t = time.time()
         fid = open(pdbfile,"r")
         # initialize temporary variables
-        self.string_info ={'atomtype':[],'atomname':[],'resname':[],'chain':[],'junk':[]}
         resnum = []; xcoord = []; ycoord = []; zcoord = []; prev_res = []
-        residcount = 0; prev_res = []
+        atomtype=[]; atomname = []; resname = []; chain = []; junk = []
+        residcount = 0; atom_in_res = 0; prev_res = []; natoms_per_res = [];
         for pdb_line in fid:
             if pdb_line.startswith("ATOM") or pdb_line.startswith("HETATM"):
                 # strings
-                self.string_info['atomtype'].append(pdb_line[ 0: 6])
-                self.string_info['atomname'].append(pdb_line[12:16])
-                self.string_info['resname'].append( pdb_line[17:21])
-                self.string_info['chain'].append(   pdb_line[21:22])
-                self.string_info['junk'].append(    pdb_line[54:  ])
-                # atomno and resno, have to reset
+                atomtype.append(pdb_line[ 0: 6])
+                atomname.append(pdb_line[12:16])
+                resname.append( pdb_line[17:21])
+                chain.append(   pdb_line[21:22])
+                junk.append(    pdb_line[54:  ])
+
+               # for resnum, have to account for pdb reset at 10K
+               # also, if start of residue, say how long the residue is
                 curr_res = int(pdb_line[22:26])
                 if curr_res != prev_res:
+
+                    atom_in_res = 0
                     residcount += 1
                     prev_res = curr_res
                 resnum.append(residcount)
@@ -245,15 +236,33 @@ class Molecules:
                 xcoord.append(float(pdb_line[30:38]))
                 ycoord.append(float(pdb_line[38:46]))
                 zcoord.append(float(pdb_line[46:54]))
+
+        fid.close()
         # now turn numbers into numpy
-        self.resid =  np.array(resnum)
-        self.atomno = np.arange(self.resid.size) + 1
+        resid =  np.array(resnum)
+        atomno = np.arange(resid.size) + 1
+        zero_array = np.zeros(resid.size,dtype=int)
+
+        self.metadata = pd.DataFrame(data={'atomno':atomno,
+                                            'resid':resid,
+                                     'resid_length':zero_array,
+                                         'leaflets':zero_array,
+                                         'atomtype':atomtype,
+                                         'atomname':atomname,
+                                          'resname':resname,
+                                            'chain':chain,
+                                             'junk':junk})
+
         x = np.array(xcoord) # this is a stupid way to concatenate things,
         y = np.array(ycoord) # but I suck with lists
         z = np.array(zcoord)
         self.coords = np.stack((x,y,z),axis=1)
-        fid.close()   # test this?
-        print('Finished reading in PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(self.atomno.size,time.time()-t))
+
+        # assigning resid lengths and leaflets
+        self.assign_resid_list()
+        self.assign_leaflets()
+
+        print('Finished reading in PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(atomno.size,time.time()-t))
         if reorganize:
             t = time.time(); print('Reformatting PDB input')
             self.reorganize_components()
@@ -280,34 +289,58 @@ class Molecules:
             out_coords[:,0:2] = out_coords[:,0:2] - np.mean(out_coords[:,0:2],axis=0)
         else:
             out_coords = np.copy(self.coords)
-        nparts = len(self.atomno)
+
+        nparts = self.coords.shape[0]
         dims = self.get_current_dims()
         # write out box dims
         line = 'CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}'.format(
                 dims[0],dims[1],dims[2],90)
         fout.write(line + '\n')
 
-        for i in range(nparts):
-            line =("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}    "
-                  + "{:8.3f}{:8.3f}{:8.3f}{:s}")
-            fout.write(line.format(self.string_info['atomtype'][i],
-                                   np.mod(self.atomno[i],100000), # cap at 10^5
-                                   self.string_info['atomname'][i],
-                                   self.string_info['resname'][i],
-                                   self.string_info['chain'][i],
-                                   np.mod(self.resid[i],10000),   # cap at 10^4
-                                   out_coords[i,0],
-                                   out_coords[i,1],
-                                   out_coords[i,2],
-                                   self.string_info['junk'][i]))
+        # dataframes are no good at individual access for millions of times,
+        # so convert to a dictionary of lists, speedup of each access is
+        # like in the 50 ns range vs 15 us for the dataframe
+        '''
+        dict_out = self.metadata.to_dict('list')
+        atomtype =
+
+        fout.writelines("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}    {:8.3f}{:8.3f}{:8.3f}{:s}\n".format(
+                                     dict_out['atomtype'][i],
+                                     np.mod(i+1,100000), # cap at 10^5
+                                     dict_out['atomname'][i],
+                                     dict_out['resname'][i],
+                                     dict_out['chain'][i],
+                                     np.mod(dict_out['resid'][i],10000),   # cap at 10^4
+                                     out_coords[i,0],
+                                     out_coords[i,1],
+                                     out_coords[i,2],
+                                     dict_out['junk'][i]) for i in range(nparts))
+        '''
+        atomtype = list(self.metadata.atomtype)
+        atomname = list(self.metadata.atomname)
+        resname  = list(self.metadata.resname)
+        resid    = list(self.metadata.resid)
+        chain    = list(self.metadata.chain)
+        junk     = list(self.metadata.junk)
+        fout.writelines("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}    {:8.3f}{:8.3f}{:8.3f}{:s}".format(
+                                     atomtype[i],
+                                     np.mod(i+1,100000), # cap at 10^5
+                                     atomname[i],
+                                     resname[i],
+                                     chain[i],
+                                     np.mod(resid[i],10000),   # cap at 10^4
+                                     out_coords[i,0],
+                                     out_coords[i,1],
+                                     out_coords[i,2],
+                                     junk[i]) for i in range(nparts))
         fout.close()
-        print('Finished writing PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(self.atomno.size,time.time()-t))
+        print('Finished writing PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(nparts,time.time()-t))
 
     def write_topology(self,outfile):
         '''Writes out simple topology file (.top)'''
         fout = open(outfile,'w')
         fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
-        count = 1
+        '''count = 1
         checker = 0
         curr_res = self.string_info['resname'][0]
         curr_resid= self.resid[0]
@@ -323,9 +356,22 @@ class Molecules:
                     count = 1
                     curr_res = res
                     curr_resid = self.resid[i]
+
         fout.write("{:4s} {:d}\n".format(curr_res,count))
+        '''
+
+        reslist = self.metadata.resname[np.where(self.metadata.resid_length > 0)[0]]
+        prev_res = reslist[0]
+        counter = 0
+        for res in reslist:
+            if res == prev_res:
+                counter += 1
+            else:
+                fout.write("{:4s} {:d}\n".format(prev_res,counter))
+                counter = 1
+                prev_res = res
+        fout.write("{:4s} {:d}\n".format(prev_res,counter))
         fout.close()
-        print(checker)
 
     def write_index(self,outfile,special_groups=None):
         '''Writes out index file (.ndx) with the following (hopefully useful)
@@ -349,9 +395,9 @@ class Molecules:
             print_obj.write("\n\n")
 
         fout = open(outfile,'w')
-        top_atomno = self.atomno[self.leaflets == 1]
-        bot_atomno = self.atomno[self.leaflets == 0]
-        write_index_unit(fout,"system",self.atomno)
+        top_atomno = np.where(self.metadata.leaflets == 1)[0] + 1
+        bot_atomno = np.where(self.metadata.leaflets == 0)[0] + 1
+        write_index_unit(fout,"system",self.metadata.atomno)
         write_index_unit(fout,"top leaflet",top_atomno)
         write_index_unit(fout,"bot leaflet",bot_atomno)
         #if special_groups is not None:

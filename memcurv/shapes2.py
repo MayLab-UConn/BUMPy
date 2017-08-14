@@ -31,8 +31,8 @@ class shapes:
         # calculate slice indices
         in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
         in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,bot_slice_radius)
-        top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
-        bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
+        top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+        bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
         # make slices
         top_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_top_circular_slice, top_leaflet_ind))
@@ -81,8 +81,8 @@ class shapes:
         yvals_inner = [slice_origin[1],slice_origin[1] + inner_slice_length]
         in_top_slice =  template_bilayer.rectangular_slice(xvals,yvals_outer)
         in_bot_slice =  template_bilayer.rectangular_slice(xvals,yvals_inner)
-        top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
-        bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
+        top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+        bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
         # make slices
         top_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_top_slice, top_leaflet_ind))
@@ -120,8 +120,8 @@ class shapes:
         in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,
                                 inner_slice_max, exclude_radius=inner_slice_min)
         # difference from sphere, exclude center
-        top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
-        bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
+        top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+        bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
         top_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(

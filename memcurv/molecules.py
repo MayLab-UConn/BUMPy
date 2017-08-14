@@ -17,13 +17,8 @@ class Molecules:
             self.read_pdb(infile)
         # assign manually
         else:
-            self.string_info = string_info  # dictionary, nparts size
-            self.atomno      = atomno     #  np int,
-            self.resid       = resid      #  np int,
             self.coords      = coords     # np float, 3D array of nparts * xyz
             # organizational variables
-            self.leaflets    = leaflets   # 1 for top, 0 for bot
-            self.resid_list  = resid_list # nres size dictionary
             self.metadata    = metadata
 
     # -------------------------------------------------------------------------
@@ -44,33 +39,19 @@ class Molecules:
         ''' Labels indices as top (1) or bottom (0) leaflet based on COM of
            entire residue
         '''
+
+        ####coms = self.calc_residue_COMS()
+        res_starts = np.where(self.metadata.resid_length > 0)[0]
+        coms = self.coords[res_starts,2]
         bilayer_com = np.mean(self.coords[:,2])
-        leaflets    = np.zeros(self.coords.shape[0],dtype=int)
-        res_starts  = np.where(self.metadata['resid_length'] > 0)[0]
-        res_lengths = self.metadata.loc[res_starts,'resid_length']
-
-        for index,length in zip(res_starts,res_lengths):
-            resrange = np.arange(index,index+length)
-            res_com = np.mean(self.coords[resrange,2])
-            if res_com > bilayer_com:
-                leaflets[resrange] = 1 # else already 0
-        self.metadata['leaflets'] = leaflets
-
+        leaflets = np.zeros(self.coords.shape[0],dtype=int)
+        for i in range(len(self.resid_list)):
+            #leaflets[self.resid_list[i]] = int(coms[i,2] > bilayer_com)
+            leaflets[self.resid_list[i]] = int(coms[i] > bilayer_com)
+        self.metadata.leaflets =leaflets
 
     def renumber_resids(self):
         ''' Renumber residues from 1 to n_residues '''
-        '''
-        counter = 1                 # what new resid will be
-        i = 0                       # indexing variable
-        curr_resid = self.resid[i]  # check before overriding
-        while i < (self.resid.size):
-            self.resid[i]= counter
-            if (i+1) < self.resid.size:
-                if self.resid[i+1] != curr_resid:
-                    counter += 1
-                    curr_resid = self.resid[i+1]
-            i +=1
-        '''
         reslist_ind = np.where(self.metadata.resid_length > 0)[0]
         lengths     = self.metadata.resid_length[reslist_ind]
         counts = list(range(1,reslist_ind.size+1))
@@ -79,37 +60,51 @@ class Molecules:
             new_resids[ind:ind+l_ind] = count
         self.metadata.resid = new_resids
 
-
     def reorder_by_leaflet(self):
-        new_index_order = np.append(np.where(self.leaflets == 1),
-                                    np.where(self.leaflets == 0))
+        ''' Switches up order of atoms so that top leaflet comes first,
+            bot comes second
+        '''
+        new_index_order = np.append(np.where(self.metadata.leaflets == 1),
+                                    np.where(self.metadata.leaflets == 0))
         self.coords = self.coords[new_index_order,:]
         self.metadata.reindex(new_index_order)
 
-    def assign_resid_list(self,wipe=True):
+    def assign_resids(self,wipe=True):
+        '''Initializes the "resid_length" section of metadata, where the first
+           atom of each residue contains the length of that residue.
+        '''
         resid_list,resid_start,resid_length = np.unique(self.metadata['resid'],
                                               return_index=True,
                                               return_counts=True)
         self.metadata.loc[resid_start,'resid_length'] = resid_length
 
     def gen_resid_list(self):
+        '''Generates the resid_list list, which for each residue contains the
+           list of atoms in that residue. This can be inferred from the "resid_length"
+           section of metadata instead, but would have to be recalculated every
+           time a residue-based cutoff is made.
+        '''
         reslist_ind = np.where(self.metadata.resid_length > 0)[0]
         lengths = self.metadata.resid_length[reslist_ind]
         self.resid_list = [list(range(ind,ind +l_ind)) for ind,l_ind in zip(reslist_ind,lengths)]
 
 
-    def reorganize_components(self,reset_leaflets=False,reorder_by_leaflets=True,
-                              renumber_resids=True):
+    def reorganize_components(self,assign_resids=True,reset_leaflets=False,
+                              reorder_by_leaflets=True,renumber_resids=True):
         '''Renumbers atoms and resids according to leaflet, also recalculates
            organizational arrays
         '''
+        self.metadata.reset_index(drop=True,inplace=True)
+
+        if assign_resids:
+            self.assign_resids()
+        self.gen_resid_list()
         if reset_leaflets:
             self.assign_leaflets()   # need resid list for this
         if reorder_by_leaflets:
             self.reorder_by_leaflet()
         if renumber_resids:
             self.renumber_resids()
-        self.gen_resid_list()
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
@@ -122,7 +117,7 @@ class Molecules:
         self.reorganize_components(preserve_leaflets)
     def slice_pdb(self,slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
-        metadata_slice = self.metadata.iloc[slice_indices]
+        metadata_slice = self.metadata.ix[slice_indices]
         molecule_slice = Molecules(infile=None,
                                    metadata=metadata_slice,
                                    coords=self.coords[  slice_indices,:])
@@ -259,8 +254,8 @@ class Molecules:
         self.coords = np.stack((x,y,z),axis=1)
 
         # assigning resid lengths and leaflets
-        self.assign_resid_list()
-        self.assign_leaflets()
+        self.assign_resids()
+        self.reorganize_components(reset_leaflets=True)
 
         print('Finished reading in PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(atomno.size,time.time()-t))
         if reorganize:

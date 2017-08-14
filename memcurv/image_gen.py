@@ -6,6 +6,7 @@ import rigid_body_transforms as rb
 import numpy as np
 
 template_bilayer = Molecules('/home/kevin/hdd/Projects/Lipid_Diffusion/flat_template_bilayers/POPC.pdb')
+template_bilayer.reorganize_components()
 outdir = '/home/kevin/hdd/Projects/Lipid_Diffusion/images/'
 
 # shape generation
@@ -26,11 +27,11 @@ yvals_outer = [slice_origin[1],slice_origin[1] + outer_slice_length]
 yvals_inner = [slice_origin[1],slice_origin[1] + inner_slice_length]
 in_top_slice =  template_bilayer.rectangular_slice(xvals,yvals_outer)
 in_bot_slice =  template_bilayer.rectangular_slice(xvals,yvals_inner)
-top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
-bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
+top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
 
 ''' Write whole bilayer pdb'''
-template_bilayer.write_pdb(outdir + 'whole_template.pdb',position=False)
+#template_bilayer.write_pdb(outdir + 'whole_template.pdb',position=False)
 
 top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_slice, top_leaflet_ind))
 bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_slice, bot_leaflet_ind))
@@ -49,7 +50,7 @@ top_leaflet.coords = nrb.scale_coordinates_rectangular(top_leaflet.coords,[1,cyl
 bot_leaflet.coords = nrb.scale_coordinates_rectangular(bot_leaflet.coords,[1,cylinder_slice_length/inner_slice_length])
 top_leaflet.append_pdb(bot_leaflet)
 '''Write top and bot in same box'''
-top_leaflet.write_pdb(outdir + 'top_and_bot_same_size.pdb',position='center')
+#top_leaflet.write_pdb(outdir + 'top_and_bot_same_size.pdb',position='center')
 top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
 '''Write cylinder'''
 top_leaflet.write_pdb(outdir + 'cylindrical_transform.pdb',position='center')

@@ -4,9 +4,9 @@ from molecules import Molecules
 import nonrigid_coordinate_transformations as nrb
 import rigid_body_transforms as rb
 import numpy as np
+import pandas as pd
 
 template_bilayer = Molecules('/home/kevin/hdd/Projects/Lipid_Diffusion/flat_template_bilayers/POPC.pdb')
-template_bilayer.reorganize_components()
 outdir = '/home/kevin/hdd/Projects/Lipid_Diffusion/images/'
 
 # shape generation
@@ -39,12 +39,12 @@ bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_slice, bot_leafle
 # copy is for making pdb with top and bottom of different sizes
 top_copy    = template_bilayer.slice_pdb(np.intersect1d(in_top_slice, top_leaflet_ind))
 '''write top and bot separately'''
-top_leaflet.write_pdb(outdir + 'top_initial_slice.pdb',position=False)
-bot_leaflet.write_pdb(outdir + 'bot_initial_slice.pdb',position=False)
+#top_leaflet.write_pdb(outdir + 'top_initial_slice.pdb',position=False)
+#bot_leaflet.write_pdb(outdir + 'bot_initial_slice.pdb',position=False)
 
 top_copy.append_pdb(bot_leaflet)
 '''Write top and bottom, different sizes'''
-top_copy.write_pdb(outdir + 'top_and_bot_no_transform.pdb',position='positive')
+#top_copy.write_pdb(outdir + 'top_and_bot_no_transform.pdb',position='positive')
 # now do transforms
 top_leaflet.coords = nrb.scale_coordinates_rectangular(top_leaflet.coords,[1,cylinder_slice_length/outer_slice_length])
 bot_leaflet.coords = nrb.scale_coordinates_rectangular(bot_leaflet.coords,[1,cylinder_slice_length/inner_slice_length])
@@ -68,8 +68,8 @@ slice_origin = template_bilayer.gen_random_slice_point(top_slice_radius)
 # calculate slice indices
 in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
 in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,bot_slice_radius)
-top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
-bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
+top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
 # make slices
 top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
 bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_circular_slice, bot_leaflet_ind))
@@ -94,8 +94,8 @@ r_tube = 100
 r_torus = 200
 
 tube_circumference = 2 *  np.pi * r_tube
-inner_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
-outer_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
 slice_min = r_torus - (tube_circumference / 4)
 slice_max = r_torus + (tube_circumference / 4)
 inner_slice_min = r_torus - (inner_tube_circumference/4)
@@ -110,10 +110,10 @@ in_top_circular_slice = template_bilayer.circular_slice(slice_origin,
 in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,
                         inner_slice_max, exclude_radius=inner_slice_min)
 # difference from sphere, exclude center
-top_leaflet_ind = np.where(template_bilayer.leaflets == 1)[0]
-bot_leaflet_ind = np.where(template_bilayer.leaflets == 0)[0]
+top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
 top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
-top_copy = template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
+top_copy =    template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
 bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_circular_slice, bot_leaflet_ind))
 top_copy.append_pdb(bot_leaflet)
 top_copy.write_pdb(outdir + 'torus_top_and_bot_no_transform.pdb',position='center')
@@ -129,3 +129,6 @@ top_leaflet.append_pdb(bot_leaflet)
 top_leaflet.write_pdb(outdir + 'torus_top_and_bot_same_size.pdb',position='center')
 top_leaflet.coords = nrb.toroidal_transform(top_leaflet.coords,r_torus,r_tube)
 top_leaflet.write_pdb(outdir + 'torus_cylindrical_transform.pdb',position='center_xy')
+
+top_slice = top_leaflet.slice_pdb(np.where(top_leaflet.metadata.leaflets == 1)[0])
+bot_slice = top_leaflet.slice_pdb(np.where(top_leaflet.metadata.leaflets == 0)[0])

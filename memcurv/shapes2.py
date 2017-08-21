@@ -104,8 +104,8 @@ class shapes:
         The flat circular slice of a half_torus with torus R ranges from
         (R-r') to (R+r'), where r' = circumference of tube / 4'''
         tube_circumference = 2 *  np.pi * r_tube
-        inner_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
-        outer_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+        inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+        outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
         slice_min = r_torus - (tube_circumference / 4)
         slice_max = r_torus + (tube_circumference / 4)
         inner_slice_min = r_torus - (inner_tube_circumference/4)

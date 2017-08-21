@@ -40,9 +40,9 @@ class Molecules:
            entire residue
         '''
 
-        ####coms = self.calc_residue_COMS()
-        res_starts = np.where(self.metadata.resid_length > 0)[0]
-        coms = self.coords[res_starts,2]
+        coms = self.calc_residue_COMS()[:,2]
+        #res_starts = np.where(self.metadata.resid_length > 0)[0]
+        ####coms = self.coords[res_starts,2]
         bilayer_com = np.mean(self.coords[:,2])
         leaflets = np.zeros(self.coords.shape[0],dtype=int)
         for i in range(len(self.resid_list)):
@@ -68,7 +68,7 @@ class Molecules:
                                     np.where(self.metadata.leaflets == 0))
         self.coords = self.coords[new_index_order,:]
         self.metadata.reindex(new_index_order)
-
+        self.gen_resid_list()
     def assign_resids(self,wipe=True):
         '''Initializes the "resid_length" section of metadata, where the first
            atom of each residue contains the length of that residue.
@@ -89,8 +89,8 @@ class Molecules:
         self.resid_list = [list(range(ind,ind +l_ind)) for ind,l_ind in zip(reslist_ind,lengths)]
 
 
-    def reorganize_components(self,assign_resids=True,reset_leaflets=False,
-                              reorder_by_leaflets=True,renumber_resids=True):
+    def reorganize_components(self,assign_resids=False,reset_leaflets=False,
+                              reorder_by_leaflets=False,renumber_resids=True):
         '''Renumbers atoms and resids according to leaflet, also recalculates
            organizational arrays
         '''
@@ -108,11 +108,11 @@ class Molecules:
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
-    def append_pdb(self,new_pdb,preserve_leaflets=False):
+    def append_pdb(self,new_pdb,preserve_leaflets=True):
         '''appends all information from new_pdb to end of current pdb '''
         # strings
-        self.metadata.append(new_pdb.metadata)
-        self.coords   = np.vstack((self.coords,new_pdb.coords))
+        self.metadata = pd.concat((self.metadata,new_pdb.metadata))
+        self.coords   = np.vstack((self.coords,  new_pdb.coords  ))
         # redo organizational arrays
         self.reorganize_components(preserve_leaflets)
     def slice_pdb(self,slice_indices):
@@ -255,7 +255,9 @@ class Molecules:
 
         # assigning resid lengths and leaflets
         self.assign_resids()
-        self.reorganize_components(reset_leaflets=True)
+        self.gen_resid_list()
+        self.assign_leaflets()
+        self.reorganize_components()
 
         print('Finished reading in PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(atomno.size,time.time()-t))
         if reorganize:
@@ -263,9 +265,15 @@ class Molecules:
             self.reorganize_components()
             print('Finished formatting PDB input, time required = {:.1f} seconds'.format(time.time()-t))
 
-    def write_pdb(self,outfile,position='positive'):
+    def write_pdb(self,outfile,position='positive',reorder=True):
         print('Writing out PDB file')
         t = time.time()
+
+        if reorder:
+            self.reorder_by_leaflet()
+            self.renumber_resids()
+            self.metadata.atomno = np.arange(1,self.coords.shape[0]+1)
+
         '''Outputs to pdb file, CRYST1 and ATOM lines only'''
         # will need modulus for atomno(max=99,999) AND resno (max = 9,999)
         fout = open(outfile,'w')

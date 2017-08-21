@@ -139,7 +139,7 @@ class Molecules:
             res_coms[i,:] = np.mean(self.coords[self.resid_list[i],:],axis=0)
         return res_coms
 
-    def rectangular_slice(self,xvals,yvals,partial_molecule='res_com'):
+    def rectangular_slice(self,xvals,yvals,exclude_radius=0,partial_molecule='res_com'):
         '''Slices pdb to include only rectangular segment from x[0] to x[1] and
            y[0] to y[1]. Default is to exclude partial molecules, have option to
            include partial molecules or make whole and include.
@@ -152,6 +152,13 @@ class Molecules:
                                            (res_coms[:,0] < xvals[1]) &
                                            (res_coms[:,1] > yvals[0]) &
                                            (res_coms[:,1] < yvals[1]) ))[0]
+
+        if exclude_radius > 0:
+            centered_coords = res_coms - [np.mean(xvals),np.mean(yvals),0]
+            theta,rho,z = nrb.cart2pol(centered_coords)
+            rho_outside_exclusion = np.where(rho > exclude_radius)[0]
+            all_inrange = np.intersect1d(all_inrange,rho_outside_exclusion)
+            #stop
         if partial_molecule == 'exclude':
             print('excluding partial molecules')
             for i in range(len(self.resid_list)):

@@ -97,21 +97,52 @@ class shapes:
         top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
         return top_leaflet
 
-    def half_torus(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
+    def half_torus(template_bilayer,r_torus,r_tube,thickness,partial='full'):
         '''Makes a half torus with given parameters,
         for radial junction set completeness = 0.25 (quarter turn)
 
         The flat circular slice of a half_torus with torus R ranges from
-        (R-r') to (R+r'), where r' = circumference of tube / 4'''
+        (R-r') to (R+r'), where r' = circumference of tube / 4
+
+        Can get a quarter torus as well using partial='inner' for the shorter
+        junction, partial ='outer' for the larger
+
+        partial tori are oriented so that the cylindrical edge points DOWN,
+        and is at 0 z
+        '''
+
+
         tube_circumference = 2 *  np.pi * r_tube
-        inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
-        outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
-        slice_min = r_torus - (tube_circumference / 4)
-        slice_max = r_torus + (tube_circumference / 4)
-        inner_slice_min = r_torus - (inner_tube_circumference/4)
-        outer_slice_min = r_torus - (outer_tube_circumference/4)
-        inner_slice_max = r_torus + (inner_tube_circumference/4)
-        outer_slice_max = r_torus + (outer_tube_circumference/4)
+
+        if partial == 'full':
+            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
+            slice_min = r_torus - (tube_circumference / 4)
+            slice_max = r_torus + (tube_circumference / 4)
+            inner_slice_min = r_torus - (inner_tube_circumference/4)
+            outer_slice_min = r_torus - (outer_tube_circumference/4)
+            inner_slice_max = r_torus + (inner_tube_circumference/4)
+            outer_slice_max = r_torus + (outer_tube_circumference/4)
+        elif partial == 'inside':  # inside half, set slice max to radius
+            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
+            slice_min = r_torus - (tube_circumference / 4)
+            slice_max = r_torus
+            inner_slice_min = r_torus - (inner_tube_circumference/4)
+            outer_slice_min = r_torus - (outer_tube_circumference/4)
+            inner_slice_max = r_torus
+            outer_slice_max = r_torus
+        elif partial == 'outside': # outside half, slice min to radius
+            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
+            slice_min = r_torus
+            slice_max = r_torus + (tube_circumference / 4)
+            inner_slice_min = r_torus
+            outer_slice_min = r_torus
+            inner_slice_max = r_torus + (inner_tube_circumference/4)
+            outer_slice_max = r_torus + (outer_tube_circumference/4)
+
+
 
         slice_origin = np.mean(template_bilayer.coords,axis=0)[0:2]
         # calculate slice indices
@@ -151,19 +182,16 @@ class shapes:
                            thickness,area_matching=True):
         semicyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,
                                  thickness, completeness=0.5)
-        semicyl.write_pdb('semi.pdb')
         junction = shapes.cylinder(template_bilayer,r_junction,l_cylinder,
                                  thickness, completeness=0.25)
-        # rotate to get first junction facing correctly (positive y side)
-        junction.coords = rb.rotate_coordinates(junction.coords,[135,0,0])
-        junction.write_pdb('junction.pdb')
         junction2 = copy(junction)
-        # rotate second one from 1st (negative y side)
-        junction2.coords = rb.rotate_coordinates(junction2.coords,[90,0,0])
-        junction2.write_pdb('junction2.pdb')
-        # translate, max of junction will be at 0, so z is set already
-        junction.coords[:,1] =  junction.coords[:,1]  - ( r_junction + r_cylinder)
-        junction2.coords[:,1] = junction2.coords[:,1] + ( r_junction + r_cylinder)
+
+        # rotations and translations. 135 and 225 degrees gets junctions
+        # rotated so that they max at 0 and taper to flat in the y direction
+        # translation because they face the wrong direction and may not match
+        # cylinder directions anyway
+        junction.coords = rb.rotate_coordinates(junction.coords,[135,0,0]) - [0,2*r_cylinder,0]
+        junction2.coords = rb.rotate_coordinates(junction2.coords,[225,0,0]) + [0,2*r_cylinder,0]
 
         if area_matching:
             # flat section will be size of xdim, ydim is arc length of cylinder
@@ -172,12 +200,32 @@ class shapes:
                          template_bilayer.rectangular_slice(
                          [20 ,l_cylinder + 20],[20, y_flat + 20]))
             flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords,axis=0)
-            flat_slice.write_pdb('flat_slice.pdb')
-        # translate flat slice, down r_junction in z direction,
-        # in y direction, +rj + rc+ half of own dimension
-        flat_slice.coords[:,1] = flat_slice.coords[:,1] +  r_junction + r_cylinder + (y_flat/2)
-        flat_slice.coords[:,2] = flat_slice.coords[:,2] - r_junction
+            flat_slice.coords = flat_slice.coords + [0,r_junction+r_cylinder+(y_flat/2),-r_junction]
         semicyl.append_pdb(junction)
         semicyl.append_pdb(junction2)
         semicyl.append_pdb(flat_slice)
         return semicyl
+
+    def mitochondrion(template_bilayer,r_cylinder,l_cylinder,r_junction,
+                          thickness,box_xy,area_matching=True):
+        #'''
+        cyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
+                              completeness=1)
+        cyl.coords = rb.rotate_coordinates(cyl.coords,[0,90,0])
+        junction = shapes.half_torus(template_bilayer,r_cylinder+r_junction,
+                                     r_cylinder,thickness,partial='inside')
+        junction.coords = junction.coords +  [0,0,l_cylinder/2]
+        junction_2 = copy(junction)
+        junction_2.coords = rb.rotate_coordinates(junction_2.coords,[180,0,0])
+        #'''
+        flat_bilayer = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
+                       [20,box_xy+20],[20,box_xy+20],r_cylinder+r_junction))
+
+        flat_bilayer.coords = flat_bilayer.coords -np.mean(flat_bilayer.coords,axis=0) + [0,0,(l_cylinder/2) + r_junction]
+        flat_bilayer_2 = copy(flat_bilayer)
+        flat_bilayer_2.coords = rb.rotate_coordinates(flat_bilayer.coords,[180,0,0])
+        cyl.append_pdb(junction)
+        cyl.append_pdb(flat_bilayer)
+        cyl.append_pdb(junction_2)
+        cyl.append_pdb(flat_bilayer_2)
+        return cyl

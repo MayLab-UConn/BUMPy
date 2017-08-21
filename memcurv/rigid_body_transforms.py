@@ -33,7 +33,7 @@ def rotate_coordinates(coords,rotation_angles,com=False,unit='degrees'):
         about center of mass of coordinates (with no weighting of particles).
         Default input is in degrees, other option is 'radians'
     '''
-    if unit == 'degrees':
+    if unit == 'degrees': # calculations are in radians
         rotation_angles = np.radians(rotation_angles)
     if com:
         com_coords = np.mean(coords,axis=0)

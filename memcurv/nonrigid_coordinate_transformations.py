@@ -57,7 +57,7 @@ def scale_coordinates_radial(coords,ratio):
     '''Coordinate scaling centered on 0'''
     meanvals = np.mean(coords,axis=0)
     coords = coords - [meanvals[0],meanvals[1],0]
-    (theta,rho,z) = cart2pol(rb.center_coordinates_3D(coords))
+    (theta,rho,z) = cart2pol(coords)
     rho = rho * ratio
     return pol2cart(theta,rho,z) + [meanvals[0],meanvals[1],0]
 def scale_coordinates_rectangular(coords,ratio):

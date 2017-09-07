@@ -17,7 +17,7 @@ def center_coordinates_3D(coords,
         if   type == 'mean':
             return coords1D - np.mean(coords1D)
         elif type == 'range':
-            return coords1D - (np.max(coords1D) - np.min(coords1D))/2
+            return coords1D - (np.max(coords1D) + np.min(coords1D))/2
     coords[:,0] = center_1D(coords[:,0],x_center_type)
     coords[:,1] = center_1D(coords[:,1],y_center_type)
     coords[:,2] = center_1D(coords[:,2],z_center_type)

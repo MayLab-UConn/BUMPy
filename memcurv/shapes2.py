@@ -38,14 +38,22 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
+        top_leaflet.write_pdb('top_init.pdb',position=False)
+        bot_leaflet.write_pdb('bot_init.pdb',position=False)
+
+        #stop
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_radial(top_leaflet.coords,
                              (slice_radius / top_slice_radius))
         bot_leaflet.coords = nrb.scale_coordinates_radial(bot_leaflet.coords,
                              (slice_radius / bot_slice_radius))
+        top_leaflet.write_pdb('top_scaled.pdb',position=False)
+        bot_leaflet.write_pdb('bot_scaled.pdb',position=False)
         # merge and transform slices
         top_leaflet.append_pdb(bot_leaflet)
+        top_leaflet.write_pdb('merge.pdb',position=False)
         top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords,r_sphere)
+        top_leaflet.write_pdb('transform.pdb',position=False)
         return top_leaflet
 
     def sphere(template_bilayer,r_sphere,thickness,n_holes=0):
@@ -97,9 +105,8 @@ class shapes:
         top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
         return top_leaflet
 
-    def half_torus(template_bilayer,r_torus,r_tube,thickness,partial='full'):
-        '''Makes a half torus with given parameters,
-        for radial junction set completeness = 0.25 (quarter turn)
+    def partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full'):
+        '''Makes a partial torus with given parameters
 
         The flat circular slice of a half_torus with torus R ranges from
         (R-r') to (R+r'), where r' = circumference of tube / 4
@@ -107,16 +114,14 @@ class shapes:
         Can get a quarter torus as well using partial='inner' for the shorter
         junction, partial ='outer' for the larger
 
-        partial tori are oriented so that the cylindrical edge points DOWN,
-        and is at 0 z
+        partial tori are oriented so that the cylindrical edges point DOWN,
+        and has a minimum at 0 z
         '''
-
-
         tube_circumference = 2 *  np.pi * r_tube
+        inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+        outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
 
         if partial == 'full':
-            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
-            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
             slice_min = r_torus - (tube_circumference / 4)
             slice_max = r_torus + (tube_circumference / 4)
             inner_slice_min = r_torus - (inner_tube_circumference/4)
@@ -124,8 +129,6 @@ class shapes:
             inner_slice_max = r_torus + (inner_tube_circumference/4)
             outer_slice_max = r_torus + (outer_tube_circumference/4)
         elif partial == 'inside':  # inside half, set slice max to radius
-            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
-            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
             slice_min = r_torus - (tube_circumference / 4)
             slice_max = r_torus
             inner_slice_min = r_torus - (inner_tube_circumference/4)
@@ -133,8 +136,6 @@ class shapes:
             inner_slice_max = r_torus
             outer_slice_max = r_torus
         elif partial == 'outside': # outside half, slice min to radius
-            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
-            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
             slice_min = r_torus
             slice_max = r_torus + (tube_circumference / 4)
             inner_slice_min = r_torus

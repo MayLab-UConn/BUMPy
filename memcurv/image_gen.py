@@ -28,7 +28,10 @@ yvals_inner = [slice_origin[1],slice_origin[1] + inner_slice_length]
 in_top_slice =  template_bilayer.rectangular_slice(xvals,yvals_outer)
 in_bot_slice =  template_bilayer.rectangular_slice(xvals,yvals_inner)
 top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
-bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
+bot_leaflet_ind = np.where(template_bilayer.metadata.
+-rw-rw-r-- 1 kevin kevin  22M Jul 26 13:34 pdbs_concat_6nsgap_g1_peptides_only.trr
+-rw-rw-r-- 1 kevin kevin 462M Jul 26 13:35 pdbs_concat_6nsgap_g1.trr
+leaflets == 0)[0]
 
 ''' Write whole bilayer pdb'''
 #template_bilayer.write_pdb(outdir + 'whole_template.pdb',position=False)
@@ -39,18 +42,18 @@ bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_slice, bot_leafle
 # copy is for making pdb with top and bottom of different sizes
 top_copy    = template_bilayer.slice_pdb(np.intersect1d(in_top_slice, top_leaflet_ind))
 '''write top and bot separately'''
-#top_leaflet.write_pdb(outdir + 'top_initial_slice.pdb',position=False)
-#bot_leaflet.write_pdb(outdir + 'bot_initial_slice.pdb',position=False)
+top_leaflet.write_pdb(outdir + 'top_initial_slice.pdb',position=False)
+bot_leaflet.write_pdb(outdir + 'bot_initial_slice.pdb',position=False)
 
 top_copy.append_pdb(bot_leaflet)
 '''Write top and bottom, different sizes'''
-#top_copy.write_pdb(outdir + 'top_and_bot_no_transform.pdb',position='positive')
+top_copy.write_pdb(outdir + 'top_and_bot_no_transform.pdb',position='positive')
 # now do transforms
 top_leaflet.coords = nrb.scale_coordinates_rectangular(top_leaflet.coords,[1,cylinder_slice_length/outer_slice_length])
 bot_leaflet.coords = nrb.scale_coordinates_rectangular(bot_leaflet.coords,[1,cylinder_slice_length/inner_slice_length])
 top_leaflet.append_pdb(bot_leaflet)
 '''Write top and bot in same box'''
-#top_leaflet.write_pdb(outdir + 'top_and_bot_same_size.pdb',position='center')
+top_leaflet.write_pdb(outdir + 'top_and_bot_same_size.pdb',position=False)
 top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
 '''Write cylinder'''
 top_leaflet.write_pdb(outdir + 'cylindrical_transform.pdb',position='center')
@@ -132,3 +135,63 @@ top_leaflet.write_pdb(outdir + 'torus_cylindrical_transform.pdb',position='cente
 
 top_slice = top_leaflet.slice_pdb(np.where(top_leaflet.metadata.leaflets == 1)[0])
 bot_slice = top_leaflet.slice_pdb(np.where(top_leaflet.metadata.leaflets == 0)[0])
+
+
+# ----quarter torus ----
+
+r_tube = 100
+r_torus = 200
+partial = 'inner'
+tube_circumference = 2 *  np.pi * r_tube
+inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
+outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
+
+slice_min = r_torus - (tube_circumference / 4)
+slice_max = r_torus + (tube_circumference / 4)
+inner_slice_min = r_torus - (inner_tube_circumference/4)
+outer_slice_min = r_torus - (outer_tube_circumference/4)
+inner_slice_max = r_torus + (inner_tube_circumference/4)
+outer_slice_max = r_torus + (outer_tube_circumference/4)
+
+
+slice_origin = np.mean(template_bilayer.coords,axis=0)[0:2]
+# calculate slice indices
+in_top_circular_slice = template_bilayer.circular_slice(slice_origin,
+                        outer_slice_max,exclude_radius=outer_slice_min)
+in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,
+                        inner_slice_max, exclude_radius=inner_slice_min)
+# difference from sphere, exclude center
+top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
+bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
+top_leaflet = template_bilayer.slice_pdb(np.intersect1d(
+              in_top_circular_slice, top_leaflet_ind))
+bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
+              in_bot_circular_slice, bot_leaflet_ind))
+#top_leaflet.write_pdb('torus_top_prescaled.pdb',position=False)
+#bot_leaflet.write_pdb('torus_bot_prescaled.pdb',position=False)
+
+# scale slices to slice_radius
+top_leaflet.coords = nrb.scale_coordinates_toroid(top_leaflet.coords,
+                     [outer_slice_min,outer_slice_max],
+                     [slice_min,slice_max])
+#top_leaflet.write_pdb('torus_top_scaled.pdb',position=False)
+bot_leaflet.coords = nrb.scale_coordinates_toroid(bot_leaflet.coords,
+                     [inner_slice_min,inner_slice_max],
+                     [slice_min,slice_max])
+#bot_leaflet.write_pdb('torus_bot_scaled.pdb',position=False)
+
+top_leaflet.append_pdb(bot_leaflet)
+
+# check quarter torus, use circular slice to cut off one side or other
+# the cutoff is r_torus. For inner, just take a circle that ends at r_torus
+# for outer, take circle larger than size of torus including everything,
+# then exclude up to r_torus
+if partial == 'inner':
+    top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords,axis=0),r_torus))
+elif partial == 'outer':
+    top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords,axis=0),r_torus+tube_circumference,exclude_radius=r_torus))
+top_leaflet.write_pdb('torus_merge_notransform.pdb',position=False)
+
+top_leaflet.coords = nrb.toroidal_transform(top_leaflet.coords,r_torus,r_tube)
+
+top_leaflet.write_pdb('torus_transform.pdb',position=False)

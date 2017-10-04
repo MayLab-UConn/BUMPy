@@ -114,14 +114,15 @@ class Molecules:
         self.metadata = pd.concat((self.metadata,new_pdb.metadata))
         self.coords   = np.vstack((self.coords,  new_pdb.coords  ))
         # redo organizational arrays
-        self.reorganize_components(preserve_leaflets)
-    def slice_pdb(self,slice_indices):
+        self.reorganize_components(reset_leaflets= not preserve_leaflets)
+    def slice_pdb(self,slice_indices,preserve_leaflets=True):
         ''' returns a new instance of current pdb class with sliced indices'''
         metadata_slice = self.metadata.ix[slice_indices]
         molecule_slice = Molecules(infile=None,
                                    metadata=metadata_slice,
                                    coords=self.coords[  slice_indices,:])
-        molecule_slice.reorganize_components()
+
+        molecule_slice.reorganize_components(reset_leaflets= not preserve_leaflets)
         return molecule_slice
 
 
@@ -240,6 +241,7 @@ class Molecules:
                 zcoord.append(float(pdb_line[46:54]))
 
         fid.close()
+
         # now turn numbers into numpy
         resid =  np.array(resnum)
         atomno = np.arange(resid.size) + 1
@@ -310,22 +312,7 @@ class Molecules:
         # dataframes are no good at individual access for millions of times,
         # so convert to a dictionary of lists, speedup of each access is
         # like in the 50 ns range vs 15 us for the dataframe
-        '''
-        dict_out = self.metadata.to_dict('list')
-        atomtype =
 
-        fout.writelines("{:6s}{:5d} {:4s} {:4s}{:1s}{:4d}    {:8.3f}{:8.3f}{:8.3f}{:s}\n".format(
-                                     dict_out['atomtype'][i],
-                                     np.mod(i+1,100000), # cap at 10^5
-                                     dict_out['atomname'][i],
-                                     dict_out['resname'][i],
-                                     dict_out['chain'][i],
-                                     np.mod(dict_out['resid'][i],10000),   # cap at 10^4
-                                     out_coords[i,0],
-                                     out_coords[i,1],
-                                     out_coords[i,2],
-                                     dict_out['junk'][i]) for i in range(nparts))
-        '''
         atomtype = list(self.metadata.atomtype)
         atomname = list(self.metadata.atomname)
         resname  = list(self.metadata.resname)
@@ -350,25 +337,7 @@ class Molecules:
         '''Writes out simple topology file (.top)'''
         fout = open(outfile,'w')
         fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
-        '''count = 1
-        checker = 0
-        curr_res = self.string_info['resname'][0]
-        curr_resid= self.resid[0]
-        for i in np.arange(self.resid.size):
-            if self.resid[i] != curr_resid:
-                res = self.string_info['resname'][i]
 
-                if res == curr_res:
-                    count += 1
-                    curr_resid = self.resid[i]
-                else:
-                    fout.write("{:4s} {:d}\n".format(curr_res,count))
-                    count = 1
-                    curr_res = res
-                    curr_resid = self.resid[i]
-
-        fout.write("{:4s} {:d}\n".format(curr_res,count))
-        '''
 
         reslist = self.metadata.resname[np.where(self.metadata.resid_length > 0)[0]]
         prev_res = reslist[0]

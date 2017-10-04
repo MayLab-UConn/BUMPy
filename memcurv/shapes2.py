@@ -25,8 +25,7 @@ class shapes:
         ''' returns molecules instance of semisphere'''
         # calculating slice radii
         slice_radius = np.pi * r_sphere / 2
-        top_slice_radius = np.pi * (r_sphere + (thickness/2)) / 2
-        bot_slice_radius = np.pi * (r_sphere - (thickness/2)) / 2
+ 
         slice_origin = template_bilayer.gen_random_slice_point(top_slice_radius)
         # calculate slice indices
         in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
@@ -116,33 +115,23 @@ class shapes:
 
         partial tori are oriented so that the cylindrical edges point DOWN,
         and has a minimum at 0 z
+
+        I can't figure out good math on where to center / scale a quarter torus,
+        in regards to the the effect of slicing on lipid ratios. Ie, can't just
+        match length of slice to tube radius, as >>WHERE<< you slice changes
+        total ratios, as opposed to cylinders (and spheres sorta). SO, will
+        just do an additional slice of the half torus if quarter is selected
         '''
         tube_circumference = 2 *  np.pi * r_tube
         inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
         outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
 
-        if partial == 'full':
-            slice_min = r_torus - (tube_circumference / 4)
-            slice_max = r_torus + (tube_circumference / 4)
-            inner_slice_min = r_torus - (inner_tube_circumference/4)
-            outer_slice_min = r_torus - (outer_tube_circumference/4)
-            inner_slice_max = r_torus + (inner_tube_circumference/4)
-            outer_slice_max = r_torus + (outer_tube_circumference/4)
-        elif partial == 'inside':  # inside half, set slice max to radius
-            slice_min = r_torus - (tube_circumference / 4)
-            slice_max = r_torus
-            inner_slice_min = r_torus - (inner_tube_circumference/4)
-            outer_slice_min = r_torus - (outer_tube_circumference/4)
-            inner_slice_max = r_torus
-            outer_slice_max = r_torus
-        elif partial == 'outside': # outside half, slice min to radius
-            slice_min = r_torus
-            slice_max = r_torus + (tube_circumference / 4)
-            inner_slice_min = r_torus
-            outer_slice_min = r_torus
-            inner_slice_max = r_torus + (inner_tube_circumference/4)
-            outer_slice_max = r_torus + (outer_tube_circumference/4)
-
+        slice_min = r_torus - (tube_circumference / 4)
+        slice_max = r_torus + (tube_circumference / 4)
+        inner_slice_min = r_torus - (inner_tube_circumference/4)
+        outer_slice_min = r_torus - (outer_tube_circumference/4)
+        inner_slice_max = r_torus + (inner_tube_circumference/4)
+        outer_slice_max = r_torus + (outer_tube_circumference/4)
 
 
         slice_origin = np.mean(template_bilayer.coords,axis=0)[0:2]
@@ -158,22 +147,36 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
+        #top_leaflet.write_pdb('torus_top_prescaled.pdb',position=False)
+        #bot_leaflet.write_pdb('torus_bot_prescaled.pdb',position=False)
 
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_toroid(top_leaflet.coords,
                              [outer_slice_min,outer_slice_max],
                              [slice_min,slice_max])
+        #top_leaflet.write_pdb('torus_top_scaled.pdb',position=False)
         bot_leaflet.coords = nrb.scale_coordinates_toroid(bot_leaflet.coords,
                              [inner_slice_min,inner_slice_max],
                              [slice_min,slice_max])
-
+        #bot_leaflet.write_pdb('torus_bot_scaled.pdb',position=False)
 
         top_leaflet.append_pdb(bot_leaflet)
+        #top_leaflet.write_pdb('torus_merge_notransform.pdb',position=False)
+        # check quarter torus, use circular slice to cut off one side or other
+        # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
+        # for outer, take circle larger than size of torus including everything,
+        # then exclude up to r_torus
         top_leaflet.coords = nrb.toroidal_transform(top_leaflet.coords,r_torus,r_tube)
+        #top_leaflet.write_pdb('torus_transform.pdb',position=False)
+        if partial == 'inner':
+            top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords,axis=0),r_torus))
+        elif partial == 'outer':
+            top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords,axis=0),r_torus+tube_circumference,exclude_radius=r_torus))
+
         return top_leaflet
 
     def torus(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
-        top_half = shapes.half_torus(template_bilayer,r_torus,r_tube,thickness)
+        top_half = shapes.partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full')
         bot_half = copy(top_half)
         bot_half.coords = rb.rotate_coordinates(bot_half.coords,[180,0,0])
         top_half.append_pdb(bot_half)
@@ -191,8 +194,8 @@ class shapes:
         # rotated so that they max at 0 and taper to flat in the y direction
         # translation because they face the wrong direction and may not match
         # cylinder directions anyway
-        junction.coords = rb.rotate_coordinates(junction.coords,[135,0,0]) - [0,2*r_cylinder,0]
-        junction2.coords = rb.rotate_coordinates(junction2.coords,[225,0,0]) + [0,2*r_cylinder,0]
+        junction.coords = rb.rotate_coordinates(junction.coords,[135,0,0]) - [0,r_junction + r_cylinder,0]
+        junction2.coords = rb.rotate_coordinates(junction2.coords,[225,0,0]) + [0,r_junction + r_cylinder,0]
 
         if area_matching:
             # flat section will be size of xdim, ydim is arc length of cylinder
@@ -213,8 +216,8 @@ class shapes:
         cyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
                               completeness=1)
         cyl.coords = rb.rotate_coordinates(cyl.coords,[0,90,0])
-        junction = shapes.half_torus(template_bilayer,r_cylinder+r_junction,
-                                     r_cylinder,thickness,partial='inside')
+        junction = shapes.partial_torus(template_bilayer,r_cylinder+r_junction,
+                                    r_junction,thickness,partial='inner')
         junction.coords = junction.coords +  [0,0,l_cylinder/2]
         junction_2 = copy(junction)
         junction_2.coords = rb.rotate_coordinates(junction_2.coords,[180,0,0])
@@ -229,4 +232,16 @@ class shapes:
         cyl.append_pdb(flat_bilayer)
         cyl.append_pdb(junction_2)
         cyl.append_pdb(flat_bilayer_2)
+        return cyl
+
+    def elongated_vesicle(template_bilayer,r,l_cylinder,thickness):
+        ''' Two semispheres connected by a cylinder'''
+        cyl = shapes.cylinder(template_bilayer,r,l_cylinder,thickness,completeness=1)
+        semisphere1 = shapes.semisphere(template_bilayer,r,thickness,completeness=1)
+        semisphere2 = copy(semisphere1)
+        semisphere1.coords = rb.rotate_coordinates(semisphere1.coords,[0, 90,0])
+        semisphere2.coords = rb.rotate_coordinates(semisphere2.coords,[0,270,0])
+        semisphere1.coords[:,0] = semisphere1.coords[:,0] - l_cylinder / 2
+        semisphere2.coords[:,0] = semisphere2.coords[:,0] + l_cylinder / 2
+        cyl.append_pdb(semisphere1); cyl.append_pdb(semisphere2)
         return cyl

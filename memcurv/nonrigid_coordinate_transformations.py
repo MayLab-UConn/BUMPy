@@ -69,7 +69,7 @@ def scale_coordinates_toroid(coords,current_range,new_range):
     '''Radial coordinate scaling from one range of spaces to another'''
     meanvals = np.mean(coords,axis=0)
     coords = coords - [meanvals[0],meanvals[1],0]
-    (theta,rho,z) = cart2pol(rb.center_coordinates_3D(coords))
+    (theta,rho,z) = cart2pol(coords)
     curr_range_size = current_range[1] - current_range[0]
     midpoint  = (current_range[0] + current_range[1]) / 2
     new_range_size  = new_range[1] - new_range[0]

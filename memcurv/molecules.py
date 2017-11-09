@@ -125,7 +125,8 @@ class Molecules:
         molecule_slice.reorganize_components(reset_leaflets= not preserve_leaflets)
         return molecule_slice
 
-
+    def duplicate_laterally(self,nx,ny):
+        pass
     # -------------------------------------------------------------------------
     # calculating geometric slices
     # -------------------------------------------------------------------------

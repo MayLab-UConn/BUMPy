@@ -15,7 +15,7 @@ class shapes:
             print('Making sphere with:\nradius={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_sphere,args.thickness))
             return shapes.sphere(bilayer,args.r_sphere,args.thickness)
         elif args.shape == 'cylinder':
-            print('Making sphere with:\nradius={:f} Angstroms\nlength={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_cylinder,args.cylinder_length,args.thickness))
+            print('Making cylinder with:\nradius={:f} Angstroms\nlength={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_cylinder,args.cylinder_length,args.thickness))
             return shapes.cylinder(bilayer,args.r_cylinder,args.cylinder_length,args.thickness)
         else:
             pass
@@ -38,25 +38,17 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
-        top_leaflet.write_pdb('top_init.pdb',position='center')
-        bot_leaflet.write_pdb('bot_init.pdb',position='center')
 
-        top_copy = copy(top_leaflet)
-        top_copy.append_pdb(bot_leaflet)
-        top_copy.write_pdb('top_and_bot_notransform.pdb')
+
         #stop
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_radial(top_leaflet.coords,
                              (slice_radius / top_slice_radius))
         bot_leaflet.coords = nrb.scale_coordinates_radial(bot_leaflet.coords,
                              (slice_radius / bot_slice_radius))
-        top_leaflet.write_pdb('top_scaled.pdb',position='center')
-        bot_leaflet.write_pdb('bot_scaled.pdb',position='center')
         # merge and transform slices
         top_leaflet.append_pdb(bot_leaflet)
-        top_leaflet.write_pdb('merge.pdb',position='center')
         top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords,r_sphere)
-        top_leaflet.write_pdb('transform.pdb',position='center')
         return top_leaflet
 
     def sphere(template_bilayer,r_sphere,thickness,n_holes=0):
@@ -102,7 +94,6 @@ class shapes:
 
         top_copy = copy(top_leaflet)
         top_copy.append_pdb(bot_leaflet)
-        top_copy.write_pdb('top_and_bot_notransform.pdb',position='center')
 
 
         # scale coordinates
@@ -112,9 +103,7 @@ class shapes:
                              bot_leaflet.coords,[1,cylinder_slice_length/inner_slice_length])
 
         top_leaflet.append_pdb(bot_leaflet)
-        top_leaflet.write_pdb('merge.pdb',position='center')
         top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
-        top_leaflet.write_pdb('transform.pdb',position='center')
         return top_leaflet
 
     def partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full'):
@@ -160,18 +149,14 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
-        #top_leaflet.write_pdb('torus_top_prescaled.pdb',position=False)
-        #bot_leaflet.write_pdb('torus_bot_prescaled.pdb',position=False)
 
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_toroid(top_leaflet.coords,
                              [outer_slice_min,outer_slice_max],
                              [slice_min,slice_max])
-        #top_leaflet.write_pdb('torus_top_scaled.pdb',position=False)
         bot_leaflet.coords = nrb.scale_coordinates_toroid(bot_leaflet.coords,
                              [inner_slice_min,inner_slice_max],
                              [slice_min,slice_max])
-        #bot_leaflet.write_pdb('torus_bot_scaled.pdb',position=False)
 
         top_leaflet.append_pdb(bot_leaflet)
         #top_leaflet.write_pdb('torus_merge_notransform.pdb',position=False)
@@ -225,7 +210,6 @@ class shapes:
 
     def mitochondrion(template_bilayer,r_cylinder,l_cylinder,r_junction,
                           thickness,box_xy,area_matching=True):
-        #'''
         cyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
                               completeness=1)
         cyl.coords = rb.rotate_coordinates(cyl.coords,[0,90,0])
@@ -234,7 +218,6 @@ class shapes:
         junction.coords = junction.coords +  [0,0,l_cylinder/2]
         junction_2 = copy(junction)
         junction_2.coords = rb.rotate_coordinates(junction_2.coords,[180,0,0])
-        #'''
         flat_bilayer = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
                        [20,box_xy+20],[20,box_xy+20],r_cylinder+r_junction))
 

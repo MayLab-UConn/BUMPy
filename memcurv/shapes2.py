@@ -25,7 +25,8 @@ class shapes:
         ''' returns molecules instance of semisphere'''
         # calculating slice radii
         slice_radius = np.pi * r_sphere / 2
- 
+        top_slice_radius = np.sqrt(2) * (r_sphere + (thickness/2))   # new area calculations
+        bot_slice_radius = np.sqrt(2) * (r_sphere - (thickness/2))
         slice_origin = template_bilayer.gen_random_slice_point(top_slice_radius)
         # calculate slice indices
         in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
@@ -37,22 +38,25 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
-        top_leaflet.write_pdb('top_init.pdb',position=False)
-        bot_leaflet.write_pdb('bot_init.pdb',position=False)
+        top_leaflet.write_pdb('top_init.pdb',position='center')
+        bot_leaflet.write_pdb('bot_init.pdb',position='center')
 
+        top_copy = copy(top_leaflet)
+        top_copy.append_pdb(bot_leaflet)
+        top_copy.write_pdb('top_and_bot_notransform.pdb')
         #stop
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_radial(top_leaflet.coords,
                              (slice_radius / top_slice_radius))
         bot_leaflet.coords = nrb.scale_coordinates_radial(bot_leaflet.coords,
                              (slice_radius / bot_slice_radius))
-        top_leaflet.write_pdb('top_scaled.pdb',position=False)
-        bot_leaflet.write_pdb('bot_scaled.pdb',position=False)
+        top_leaflet.write_pdb('top_scaled.pdb',position='center')
+        bot_leaflet.write_pdb('bot_scaled.pdb',position='center')
         # merge and transform slices
         top_leaflet.append_pdb(bot_leaflet)
-        top_leaflet.write_pdb('merge.pdb',position=False)
+        top_leaflet.write_pdb('merge.pdb',position='center')
         top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords,r_sphere)
-        top_leaflet.write_pdb('transform.pdb',position=False)
+        top_leaflet.write_pdb('transform.pdb',position='center')
         return top_leaflet
 
     def sphere(template_bilayer,r_sphere,thickness,n_holes=0):
@@ -95,13 +99,22 @@ class shapes:
                       in_top_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_slice, bot_leaflet_ind))
+
+        top_copy = copy(top_leaflet)
+        top_copy.append_pdb(bot_leaflet)
+        top_copy.write_pdb('top_and_bot_notransform.pdb',position='center')
+
+
         # scale coordinates
         top_leaflet.coords = nrb.scale_coordinates_rectangular(
                              top_leaflet.coords,[1,cylinder_slice_length/outer_slice_length])
         bot_leaflet.coords = nrb.scale_coordinates_rectangular(
                              bot_leaflet.coords,[1,cylinder_slice_length/inner_slice_length])
+
         top_leaflet.append_pdb(bot_leaflet)
+        top_leaflet.write_pdb('merge.pdb',position='center')
         top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
+        top_leaflet.write_pdb('transform.pdb',position='center')
         return top_leaflet
 
     def partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full'):

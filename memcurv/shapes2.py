@@ -9,16 +9,20 @@ import rigid_body_transforms as rb
 import nonrigid_coordinate_transformations as nrb
 from copy import deepcopy,copy
 
-class shapes:
-    def gen_shape(args,bilayer):
-        if args.shape == 'sphere':
-            print('Making sphere with:\nradius={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_sphere,args.thickness))
-            return shapes.sphere(bilayer,args.r_sphere,args.thickness)
-        elif args.shape == 'cylinder':
-            print('Making cylinder with:\nradius={:f} Angstroms\nlength={:f} Angstroms\nthickness={:f} Angstroms\n'.format(args.r_cylinder,args.cylinder_length,args.thickness))
-            return shapes.cylinder(bilayer,args.r_cylinder,args.cylinder_length,args.thickness)
-        else:
-            pass
+class shape(object):
+    '''
+    Base class for all shapes to build on.
+    '''
+    def __init__(self):
+        pass
+
+    def dimension_requirements(self):
+        pass 
+
+    def final_dimensions(self):
+        pass
+
+
 
     def semisphere(template_bilayer,r_sphere,thickness,contains_hole=False,
                    completeness=1):
@@ -38,9 +42,6 @@ class shapes:
                       in_top_circular_slice, top_leaflet_ind))
         bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(
                       in_bot_circular_slice, bot_leaflet_ind))
-
-
-        #stop
         # scale slices to slice_radius
         top_leaflet.coords = nrb.scale_coordinates_radial(top_leaflet.coords,
                              (slice_radius / top_slice_radius))

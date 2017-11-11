@@ -30,21 +30,15 @@ def parse_command_lines():
     output_arguments    = parser.add_argument_group('output arguments',
                           output_description)
     # mandatory input
-    required_inputs.add_argument('-s','--shape')
-    required_inputs.add_argument('-f','--bilayer')
-    # geometric parameters, which are used depends on shape input
-    geometric_arguments.add_argument('--r_sphere',type=float)
-    geometric_arguments.add_argument('--r_cylinder',type=float)
-    geometric_arguments.add_argument('--r_junction',type=float)
-    geometric_arguments.add_argument('--cylinder_length',type=float)
-    geometric_arguments.add_argument('--completeness',type=float,default=1.0)
-    geometric_arguments.add_argument('--flat_area',default='match_average')
+    required_inputs.add_argument('-s','--shape',required=True)
+    required_inputs.add_argument('-f','--bilayer',required=True)
+    required_inputs.add_argument('-g','--geometry',nargs='*',required=True)
+    required_inputs.add_argument('-z','--zo',required=True, type=float)
+
     # optional arguments
     optional_arguments.add_argument('-h','--help', action='help',
                              help='show this help message and exit')
     optional_arguments.add_argument('--outer_leaflet',default='top')
-    optional_arguments.add_argument('--thickness',type=float)
-    optional_arguments.add_argument('--area_matching_method',default='scaling')
     optional_arguments.add_argument('-uapl','--upper_area_per_lipid')
     optional_arguments.add_argument('-lapl','--lower_area_per_lipid')
     # output files
@@ -77,18 +71,6 @@ def check_argument_sanity(cl_args):
     return True
 
 
-def duplicate_flat_bilayer(bilayer_obj):
-    '''Duplicates a flat bilayer 3 times, appends to make a bilayer 4 times
-       the original size with same dimension ratios
-    '''
-    dimensions = bilayer_obj.get_current_dims()
-    x_plus  = bilayer_obj.slice_pdb(np.arange(0,len(bilayer_obj.atomno)))
-    y_plus  = bilayer_obj.slice_pdb(np.arange(0,len(bilayer_obj.atomno)))
-    xy_plus = bilayer_obj.slice_pdb(np.arange(0,len(bilayer_obj.atomno)))
-    x_plus.coords = x_plus.coords + [dimensions[0],0,0]
-    y_plus.coords = y_plus.coords + [0,dimensions[1],0]
-    xy_plus.coords = xy_plus_coords + [dimensions[0],dimensions[1],0]
-    return bilayer_obj.append_pdb(x_plus).append_pdb(y_plus).append_pdb(xy_plus)
 
 # -----------------------------------------------------------------------------
 # main commands, turn into function main() at end
@@ -98,20 +80,11 @@ args = parse_command_lines()
 display_parameters(args)  # show user what they selected
 #if not check_argument_sanity(args): # exit early if there's an issue#
 #    exit
-# determine which shape_assembly to call
-#functions = {
-#    'semisphere'             : shapes.semisphere,
-#    'sphere'                 : shapes.sphere,
-#    'cylinder'               : shapes.cylinder,
-#    'torus'                  : shapes.torus,
-#    'spherocylinder'         : shapes.spherocylinder,
-#    'cylinder_pierced_sphere': shapes.cylinder_pierced_sphere,
-#    'semisphere_bilayer'     : shapes.semisphere_bilayer,
-#    'semicylinder_bilayer'   : shapes.semicylinder_bilayer,
-#    'cylinder_bilayer'       : shapes.cylinder_bilayer
- #}
+
 template_bilayer = Molecules(infile=args.bilayer)
-shape_tobuild = shapes2.shapes.gen_shape(args,template_bilayer)
+geometric_args = {garg.split(':')[0]:float(garg.split(':')[1]) for garg in args.g } # use a comprehension
+zo = args.z
+shape_tobuild = getattr(shapes2.shapes,args.shape)(template_bilayer,zo,**geometric_args)
 shape_tobuild.write_pdb(args.o)
 shape_tobuild.write_topology(args.p)
 shape_tobuild.write_index(args.n)

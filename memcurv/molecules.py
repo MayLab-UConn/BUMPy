@@ -176,16 +176,15 @@ class Molecules:
     # file i/o
     # -------------------------------------------------------------------------
     def read_pdb(self,pdbfile,reorganize=False):
-        '''Read input pdb, default is to renumber and reorder atoms and resids
-           based on leaflets (top first)
+        '''Read input pdb
         '''
         print('Reading in PDB file')
         t = time.time()
         with open(pdbfile,"r") as fid:
             # initialize temporary variables
-            xcoord, ycoord, zcoord = [],[],[]                         # 3D coordinates
-            atomtype, atomname, resname = [],[],[]                    # invariant labels
-            curr_res , prev_res,temp_reslist,ressize  = [],[],[],[]   # residue indexing
+            xcoord, ycoord, zcoord       = [],[],[]                   # 3D coordinates
+            atomtype, atomname, resname  = [],[],[]                    # invariant labels
+            curr_res , prev_res,ressize  = [],[],[]                    # residue indexing
             atomcount = 0                                             # counters
 
             for pdb_line in fid:
@@ -225,11 +224,7 @@ class Molecules:
                                          'atomtype':atomtype,
                                          'atomname':atomname,
                                           'resname':resname})
-
-        x = np.array(xcoord) # this is a stupid way to concatenate things,
-        y = np.array(ycoord) # but I suck with lists
-        z = np.array(zcoord)
-        self.coords = np.stack((x,y,z),axis=1)
+        self.coords = np.array((xcoord,ycoord,zcoord)).T
         # assigning resid lengths and leaflets
         self.assign_leaflets()
         print('Finished reading in PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(self.coords.shape[0],time.time()-t))
@@ -240,14 +235,11 @@ class Molecules:
 
         if reorder:
             self.reorder_by_leaflet()
-            #self.renumber_resids()
-            #self.metadata.atomno = np.arange(1,self.coords.shape[0]+1)
 
         '''Outputs to pdb file, CRYST1 and ATOM lines only'''
-        # will need modulus for atomno(max=99,999) AND resno (max = 9,999)
 
-        # bring everything to positive regime, allows for up to 9999 angstroms
-        # in PDB file format
+        # default is to bring everything to positive regime, allows for up to
+        #9999 angstroms in PDB file format
         if position == 'positive':
             out_coords = self.coords -np.min(self.coords,axis=0)
         elif position == 'positive_xy':
@@ -264,21 +256,14 @@ class Molecules:
         nparts = self.coords.shape[0]
         dims = self.get_current_dims()
         # write out box dims
-        line = 'CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}'.format(
-                dims[0],dims[1],dims[2],90)
+
 
         with open(outfile,'w') as fout:
-
+            line = 'CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}'.format(
+                    dims[0],dims[1],dims[2],90)
             fout.write(line + '\n')
 
-            # dataframes are no good at individual access for millions of times,
-            # so convert to a dictionary of lists, speedup of each access is
-            # like in the 50 ns range vs 15 us for the dataframe
-
-
-
-            # now populate resid and atomno
-            '''
+            # calculating residue and atom numbers
             resid = np.zeros(nparts,dtype=int)
             count = 1
             ressize = self.metadata.ressize.tolist()
@@ -289,36 +274,12 @@ class Molecules:
                     count += 1
             resid = np.mod(resid,10000)
             atomno = np.mod(np.arange(1,nparts+1),100000)
-            atomtype = self.metadata.atomtype.tolist()
-            atomname = self.metadata.atomname.tolist()
-            resname  = self.metadata.resname.tolist()
-
-            fout.writelines(["{:6s}{:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
-                                         atomtype[i],
-                                         atomno[i], # cap at 10^5
-                                         atomname[i],
-                                         resname[i],
-                                         resid[i],   # cap at 10^4
-                                         out_coords[i,0],
-                                         out_coords[i,1],
-                                         out_coords[i,2])  for i in range(nparts)])
-            '''
-            resid = np.zeros(nparts,dtype=int)
-            count = 1
-            ressize = self.metadata.ressize.tolist()
-            for i in range(nparts):
-                size = ressize[i]
-                if size > 0:
-                    resid[i:i + size] = count
-                    count += 1
-            resid = np.mod(resid,10000)
-            atomno = np.mod(np.arange(1,nparts+1),100000)
-
 
             fout.writelines(["{:6s}{:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
                                          i[0],i[1],i[2],i[3],i[4], i[5],i[6], i[7])  for i in zip(
                                          self.metadata.atomtype,
-                                         atomno,self.metadata.atomname,
+                                         atomno,
+                                         self.metadata.atomname,
                                          self.metadata.resname,
                                          resid,
                                          out_coords[:,0],out_coords[:,1],out_coords[:,2] )])
@@ -328,22 +289,21 @@ class Molecules:
 
     def write_topology(self,outfile):
         '''Writes out simple topology file (.top)'''
-        fout = open(outfile,'w')
-        fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
+        with open(outfile,'w') as fout:
+            fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
 
 
-        reslist = self.metadata.resname[np.where(self.metadata.resid_length > 0)[0]]
-        prev_res = reslist[0]
-        counter = 0
-        for res in reslist:
-            if res == prev_res:
-                counter += 1
-            else:
-                fout.write("{:4s} {:d}\n".format(prev_res,counter))
-                counter = 1
-                prev_res = res
-        fout.write("{:4s} {:d}\n".format(prev_res,counter))
-        fout.close()
+            reslist = self.metadata.resname[np.where(self.metadata.resid_length > 0)[0]]
+            prev_res = reslist[0]
+            counter = 0
+            for res in reslist:
+                if res == prev_res:
+                    counter += 1
+                else:
+                    fout.write("{:4s} {:d}\n".format(prev_res,counter))
+                    counter = 1
+                    prev_res = res
+            fout.write("{:4s} {:d}\n".format(prev_res,counter))
 
     def write_index(self,outfile,special_groups=None):
         '''Writes out index file (.ndx) with the following (hopefully useful)
@@ -366,15 +326,14 @@ class Molecules:
                     print_obj.write("\n")
             print_obj.write("\n\n")
 
-        fout = open(outfile,'w')
-        top_atomno = np.where(self.metadata.leaflets == 1)[0] + 1
-        bot_atomno = np.where(self.metadata.leaflets == 0)[0] + 1
-        write_index_unit(fout,"system",self.metadata.atomno)
-        write_index_unit(fout,"top leaflet",top_atomno)
-        write_index_unit(fout,"bot leaflet",bot_atomno)
-        #if special_groups is not None:
-        #        for name in special_groups:
-        #            name_indices =
-        #for i in list(set(self.resname)):
-            # this is where individual residues would go
-        fout.close()
+        with open(outfile,'w') as fout:
+            top_atomno = np.where(self.metadata.leaflets == 1)[0] + 1
+            bot_atomno = np.where(self.metadata.leaflets == 0)[0] + 1
+            write_index_unit(fout,"system",self.metadata.atomno)
+            write_index_unit(fout,"top leaflet",top_atomno)
+            write_index_unit(fout,"bot leaflet",bot_atomno)
+            #if special_groups is not None:
+            #        for name in special_groups:
+            #            name_indices =
+            #for i in list(set(self.resname)):
+                # this is where individual residues would go

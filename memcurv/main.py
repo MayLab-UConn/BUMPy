@@ -5,7 +5,7 @@ import shapes2
 from molecules import Molecules
 import nonrigid_coordinate_transformations as nrb
 import rigid_body_transforms as rb
-
+import numpy as np
 
 __version__ = '0.5'
 
@@ -49,27 +49,7 @@ def parse_command_lines():
 
 def display_parameters(cl_args):
     '''Displays selected parameters upon command line execution'''
-    pass # develop this
-
-def check_argument_sanity(cl_args):
-    '''Checks arguments to make sure necessary arguments are present and with
-       correct file types.
-
-       Matching geometric parameters to shapes will occur in each shape class,
-       as different shapes require different parameters
-    '''
-    shape_options = ['sphere','cylinder','torus','spherocylinder',
-                    'cylinder-pierced-sphere','semisphere-bilayer',
-                    'semicylinder-bilayer','cylinder-bilayer']
-    # list which parameters are applicable to shapes
-    if cl_args.shape is None:
-        print('Error: You must specify a shape using -s')
-        return False
-    if cl_args.bilayer[-4:] != '.pdb':
-        print('Error: input file from -f does not have a .pdb extension\n')
-        return False
-    return True
-
+    pass
 
 
 # -----------------------------------------------------------------------------
@@ -78,13 +58,24 @@ def check_argument_sanity(cl_args):
 print('Parsing command line arguments\n')
 args = parse_command_lines()
 display_parameters(args)  # show user what they selected
-#if not check_argument_sanity(args): # exit early if there's an issue#
-#    exit
 
+# parse arguments
+geometric_args = {garg.split(':')[0]:float(garg.split(':')[1]) for garg in args.geometry } # use a comprehension
+zo = args.zo
+#shape_tobuild = getattr(shapes2.shapes,args.shape) This will be correct when compiled together
+shape_tobuild = getattr(shapes2,args.shape)
+
+# adjust size of template bilayer
 template_bilayer = Molecules(infile=args.bilayer)
-geometric_args = {garg.split(':')[0]:float(garg.split(':')[1]) for garg in args.g } # use a comprehension
-zo = args.z
-shape_tobuild = getattr(shapes2.shapes,args.shape)(template_bilayer,zo,**geometric_args)
-shape_tobuild.write_pdb(args.o)
-shape_tobuild.write_topology(args.p)
-shape_tobuild.write_index(args.n)
+mult_factor = np.ceil( shape_tobuild.dimension_requirements(**geometric_args)/template_bilayer.boxdims[0:2]).astype(int)
+template_bilayer.duplicate_laterally(*mult_factor)
+
+# construct the shape
+shape = shape_tobuild.gen_shape(template_bilayer,zo,**geometric_args)
+shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
+# file output
+shape.write_pdb(args.o)
+if args.p:
+    shape.write_topology(args.p)
+if args.n:
+    shape.write_index(args.n)

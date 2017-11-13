@@ -53,7 +53,7 @@ class Molecules:
         new_index_order = np.append(np.where(self.metadata.leaflets == 1),
                                     np.where(self.metadata.leaflets == 0))
         self.coords = self.coords[new_index_order,:]
-        self.metadata.reindex(new_index_order)
+        self.metadata.index = new_index_order  
 
 
     # -------------------------------------------------------------------------
@@ -151,8 +151,8 @@ class Molecules:
     def circular_slice(self,center,radius,exclude_radius=0,
                        partial_molecule='res_com'):
         indices_tokeep = []
+        res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
-
         centered_coords = res_coms - [center[0],center[1],0]
         (theta,rho,z) = nrb.cart2pol(centered_coords)
         all_inrange = np.where((rho <= radius) & (rho>= exclude_radius))[0]
@@ -169,7 +169,7 @@ class Molecules:
         elif partial_molecule == 'res_com':
             print('Excluding based on residue COM cutoff')
             for i in all_inrange:
-                indices_tokeep.extend(self.resid_list[i])
+                indices_tokeep.extend(list(range(res_starts[i],res_starts[i] + self.metadata.ressize[res_starts[i]])))
         return np.asarray(indices_tokeep)
 
     # -------------------------------------------------------------------------

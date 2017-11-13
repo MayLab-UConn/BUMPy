@@ -13,24 +13,38 @@ class shape(object):
     '''
     Base class for all shapes to build on.
     '''
-    def __init__(self):
-        pass
+    @staticmethod
+    def gen_shape():
+        raise NotImplementedError
 
-    def dimension_requirements(self):
-        pass 
+    @staticmethod
+    def dimension_requirements():
+        raise NotImplementedError
 
-    def final_dimensions(self):
-        pass
+    @staticmethod
+    def final_dimensions():
+        raise NotImplementedError
 
 
 
-    def semisphere(template_bilayer,r_sphere,thickness,contains_hole=False,
-                   completeness=1):
+class semisphere(shape):
+
+    @staticmethod
+    def dimension_requirements(r_sphere, buff=50):
+        return np.array([(r_sphere + buff) * np.pi  , (r_sphere + buff) * np.pi ])
+
+    @staticmethod
+    def final_dimensions(r_sphere,buff=50):
+        return np.array([2 * (r_sphere + buff), 2 *(r_sphere + buff), r_sphere +(2 * buff)])
+
+    @ staticmethod
+    def gen_shape(template_bilayer,zo,r_sphere,contains_hole=False,
+               completeness=1):
         ''' returns molecules instance of semisphere'''
         # calculating slice radii
         slice_radius = np.pi * r_sphere / 2
-        top_slice_radius = np.sqrt(2) * (r_sphere + (thickness/2))   # new area calculations
-        bot_slice_radius = np.sqrt(2) * (r_sphere - (thickness/2))
+        top_slice_radius = np.sqrt(2) * (r_sphere + zo)
+        bot_slice_radius = np.sqrt(2) * (r_sphere - zo)
         slice_origin = template_bilayer.gen_random_slice_point(top_slice_radius)
         # calculate slice indices
         in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
@@ -52,22 +66,36 @@ class shape(object):
         top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords,r_sphere)
         return top_leaflet
 
-    def sphere(template_bilayer,r_sphere,thickness,n_holes=0):
-        # check for holes
-        if n_holes == 0:
-            pass
-        elif n_holes == 1:
-            pass
-        elif n_holes  == 2:
-            pass
+class sphere(shape):
 
-        top_half = shapes.semisphere(template_bilayer,r_sphere,thickness,False)
+    @staticmethod
+    def dimension_requirements(r_sphere, buff=50):
+        return semisphere.dimension_requirements(r_sphere)
+
+    @staticmethod
+    def final_dimensions(r_sphere,buff=50):
+        return np.array([2 * (r_sphere + buff)] * 3)
+
+    @staticmethod
+    def gen_shape(template_bilayer,zo,r_sphere,n_holes=0):
+        top_half = semisphere.gen_shape(template_bilayer,zo,r_sphere,False)
         bot_half = copy(top_half)
         bot_half.coords = rb.rotate_coordinates(bot_half.coords,[180,0,0])
         top_half.append_pdb(bot_half,preserve_leaflets=True)
         return top_half
 
-    def cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
+class cylinder(shape):
+
+    @staticmethod
+    def dimension_requirements(r_cylinder,l_cylinder,completeness=1, buff=50):
+        return np.array([ l_cylinder + buff , (r_cylinder + buff) * 2 * np.pi * completeness ])
+
+    @staticmethod
+    def final_dimensions(r_cylinder,l_cylinder,buff=50):
+        return np.array([l_cylinder, r_cylinder + buff, r_cylinder + buff])
+
+
+    def gen_shape(template_bilayer,r_cylinder,l_cylinder,thickness,
                 completeness=1):
         '''Makes a cylinder with given parameters.
 
@@ -96,7 +124,6 @@ class shape(object):
         top_copy = copy(top_leaflet)
         top_copy.append_pdb(bot_leaflet)
 
-
         # scale coordinates
         top_leaflet.coords = nrb.scale_coordinates_rectangular(
                              top_leaflet.coords,[1,cylinder_slice_length/outer_slice_length])
@@ -107,7 +134,17 @@ class shape(object):
         top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords),r_cylinder)
         return top_leaflet
 
-    def partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full'):
+class partial_torus(shape):
+    @staticmethod
+    def dimension_requirements(r_torus,r_tube, buff=50):
+        return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2)
+
+    @staticmethod
+    def final_dimensions(r_torus,r_tube,buff=50):
+        return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
+
+    @staticmethod
+    def gen_shape(template_bilayer,r_torus,r_tube,thickness,partial='full'):
         '''Makes a partial torus with given parameters
 
         The flat circular slice of a half_torus with torus R ranges from
@@ -174,15 +211,37 @@ class shape(object):
 
         return top_leaflet
 
-    def torus(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
-        top_half = shapes.partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full')
+class torus(shape):
+    @staticmethod
+    def dimension_requirements(r_torus,r_tube, buff=50):
+        return partial_torus.dimension_requirements(r_torus,r_tube)
+
+    @staticmethod
+    def final_dimensions(r_torus,r_tube,buff=50):
+        return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [2 *( r_tube + buff)])
+
+
+    @staticmethod
+    def gen_shape(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
+        top_half = partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full')
         bot_half = copy(top_half)
         bot_half.coords = rb.rotate_coordinates(bot_half.coords,[180,0,0])
         top_half.append_pdb(bot_half)
         return top_half
 
-    def semicylinder_plane(template_bilayer,r_cylinder,l_cylinder,r_junction,
-                           thickness,area_matching=True):
+class semicylinder_plane(shape):
+
+    @staticmethod
+    def dimension_requirements(r_cylinder,l_cylinder,r_junction,l_flat,buff=50):
+        return
+
+    @staticmethod
+    def final_dimensions(r_cylinder,l_cylinder,r_junction,l_flat,buff=50):
+        return
+
+
+    @staticmethod
+    def gen_shape(template_bilayer,zo,r_cylinder,l_cylinder,r_junction,l_flat):
         semicyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,
                                  thickness, completeness=0.5)
         junction = shapes.cylinder(template_bilayer,r_junction,l_cylinder,
@@ -196,21 +255,26 @@ class shape(object):
         junction.coords = rb.rotate_coordinates(junction.coords,[135,0,0]) - [0,r_junction + r_cylinder,0]
         junction2.coords = rb.rotate_coordinates(junction2.coords,[225,0,0]) + [0,r_junction + r_cylinder,0]
 
-        if area_matching:
-            # flat section will be size of xdim, ydim is arc length of cylinder
-            y_flat = np.pi * r_cylinder
-            flat_slice = template_bilayer.slice_pdb(
-                         template_bilayer.rectangular_slice(
-                         [20 ,l_cylinder + 20],[20, y_flat + 20]))
-            flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords,axis=0)
-            flat_slice.coords = flat_slice.coords + [0,r_junction+r_cylinder+(y_flat/2),-r_junction]
+        ''' THIS IS INCOMPLETE AND WRONG'''
+        flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords,axis=0)
+        flat_slice.coords = flat_slice.coords + [0,r_junction+r_cylinder+(y_flat/2),-r_junction]
         semicyl.append_pdb(junction)
         semicyl.append_pdb(junction2)
         semicyl.append_pdb(flat_slice)
         return semicyl
 
-    def mitochondrion(template_bilayer,r_cylinder,l_cylinder,r_junction,
-                          thickness,box_xy,area_matching=True):
+class mitochondrion(shape):
+    @staticmethod
+    def dimension_requirements(r_cylinder,l_cylinder,r_junction,flat_dimension,buff=50):
+        return
+
+    @staticmethod
+    def final_dimensions(r_cylinder,l_cylinder,r_junction,flat_dimension,buff=50):
+        return
+
+
+    @staticmethod
+    def gen_shape(template_bilayer,zo,r_cylinder,l_cylinder,r_junction,flat_dimension):
         cyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
                               completeness=1)
         cyl.coords = rb.rotate_coordinates(cyl.coords,[0,90,0])
@@ -231,7 +295,17 @@ class shape(object):
         cyl.append_pdb(flat_bilayer_2)
         return cyl
 
-    def elongated_vesicle(template_bilayer,r,l_cylinder,thickness):
+class elongated_vesicle(shape):
+    @staticmethod
+    def dimension_requirements(r_cylinder,l_cylinder,r_junction,l_flat,buff=50):
+        return
+
+    @staticmethod
+    def final_dimensions(r_cylinder,l_cylinder,r_junction,l_flat,buff=50):
+        return
+
+    @staticmethod
+    def gen_shape(template_bilayer,r,l_cylinder,thickness):
         ''' Two semispheres connected by a cylinder'''
         cyl = shapes.cylinder(template_bilayer,r,l_cylinder,thickness,completeness=1)
         semisphere1 = shapes.semisphere(template_bilayer,r,thickness,completeness=1)

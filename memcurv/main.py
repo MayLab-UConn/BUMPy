@@ -258,9 +258,9 @@ class Molecules:
     # -------------------------------------------------------------------------
     # calculating geometric slices
     # -------------------------------------------------------------------------
-    def gen_random_slice_point(self,slice_r):
+    def gen_slicepoint(self):
         ''' Within boundaries, randomize slicing region'''
-        return np.mean(self.coords,axis=0)[0:2]
+        return np.min(self.coords[:,0:2],axis=0) + [20,20]
 
     def calc_residue_COMS(self):
         com_indices = np.where(self.metadata.ressize > 0)[0]
@@ -279,6 +279,7 @@ class Molecules:
 
            RETURNS INDICES, not actual slice
         '''
+        res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
         indices_tokeep = []
         all_inrange = np.asarray(np.where( (res_coms[:,0] > xvals[0]) &
@@ -305,9 +306,9 @@ class Molecules:
                     indices_tokeep =np.append(indices_tokeep,np.array(resvals))
 
         elif partial_molecule == 'res_com':
-                print('Excluding based on residue COM cutoff')
-                for i in all_inrange:
-                    indices_tokeep.extend(self.resid_list[i])
+            print('Excluding based on residue COM cutoff')
+            for i in all_inrange:
+                indices_tokeep.extend(list(range(res_starts[i],res_starts[i] + self.metadata.ressize[res_starts[i]])))
         return np.asarray(indices_tokeep)
 
     def circular_slice(self,center,radius,exclude_radius=0,
@@ -504,7 +505,7 @@ class Molecules:
 class shapes:
     class shape:
         '''
-        Base class for all shapes to build on.
+        Base class for all shapes to build on. Must have all 3 methods
         '''
         @staticmethod
         def gen_shape():
@@ -538,7 +539,7 @@ class shapes:
             slice_radius = np.pi * r_sphere / 2
             top_slice_radius = np.sqrt(2) * (r_sphere + zo)
             bot_slice_radius = np.sqrt(2) * (r_sphere - zo)
-            slice_origin = template_bilayer.gen_random_slice_point(top_slice_radius)
+            slice_origin = np.mean(coords[:,0:2],axis=0)
             # calculate slice indices
             in_top_circular_slice = template_bilayer.circular_slice(slice_origin,top_slice_radius)
             in_bot_circular_slice = template_bilayer.circular_slice(slice_origin,bot_slice_radius)
@@ -588,8 +589,7 @@ class shapes:
             return np.array([l_cylinder, r_cylinder + buff, r_cylinder + buff])
 
 
-        def gen_shape(template_bilayer,r_cylinder,l_cylinder,thickness,
-                    completeness=1):
+        def gen_shape(template_bilayer,zo,r_cylinder,l_cylinder,completeness=1):
             '''Makes a cylinder with given parameters.
 
             Completeness=0.5 for semicylinder,
@@ -598,8 +598,8 @@ class shapes:
             # calculate slice lengths
             cylinder_slice_length = 2 * np.pi * r_cylinder * completeness
             slice_origin = np.min(template_bilayer.coords,axis=0)[0:2]+40
-            outer_slice_length = 2 * np.pi * (r_cylinder + (thickness/2)) * completeness
-            inner_slice_length = 2 * np.pi * (r_cylinder - (thickness/2)) * completeness
+            outer_slice_length = 2 * np.pi * (r_cylinder + zo) * completeness
+            inner_slice_length = 2 * np.pi * (r_cylinder - zo) * completeness
             # calculate slice indices
             xvals = [slice_origin[0],slice_origin[0] + l_cylinder]
             yvals_outer = [slice_origin[1],slice_origin[1] + outer_slice_length]
@@ -637,7 +637,7 @@ class shapes:
             return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
 
         @staticmethod
-        def gen_shape(template_bilayer,r_torus,r_tube,thickness,partial='full'):
+        def gen_shape(template_bilayer,zo,r_torus,r_tube,partial='full'):
             '''Makes a partial torus with given parameters
 
             The flat circular slice of a half_torus with torus R ranges from
@@ -656,8 +656,8 @@ class shapes:
             just do an additional slice of the half torus if quarter is selected
             '''
             tube_circumference = 2 *  np.pi * r_tube
-            inner_tube_circumference = 2 * np.pi * (r_tube - (thickness/2))
-            outer_tube_circumference = 2 * np.pi * (r_tube + (thickness/2))
+            inner_tube_circumference = 2 * np.pi * (r_tube - zo)
+            outer_tube_circumference = 2 * np.pi * (r_tube + zo)
 
             slice_min = r_torus - (tube_circumference / 4)
             slice_max = r_torus + (tube_circumference / 4)
@@ -715,8 +715,8 @@ class shapes:
 
 
         @staticmethod
-        def gen_shape(template_bilayer,r_torus,r_tube,thickness,completeness=0.5):
-            top_half = shapes.partial_torus(template_bilayer,r_torus,r_tube,thickness,partial='full')
+        def gen_shape(template_bilayer,zo,r_torus,r_tube,completeness=0.5):
+            top_half = shapes.partial_torus(template_bilayer,zo,r_torus,r_tube,partial='full')
             bot_half = copy(top_half)
             bot_half.coords = rb.rotate_coordinates(bot_half.coords,[180,0,0])
             top_half.append_pdb(bot_half)
@@ -726,19 +726,20 @@ class shapes:
 
         @staticmethod
         def dimension_requirements(r_cylinder,l_cylinder,r_junction,l_flat,buff=50):
-            return
+            cyldims = shapes.cylinder.dimension_requirements(r_cylinder,l_cylinder,completeness=0.5)
+            flatdims = np.array([l_cylinder,l_flat])
+            jdims  =  shapes.cylinder.dimension_requirements(r_junction,l_cylinder,completeness=0.5)
+            return np.array([max([cyldims[0],flatdims[0],jdims[0]]), max([cyldims[1],flatdims[1],jdims[1]])])
 
         @staticmethod
         def final_dimensions(r_cylinder,l_cylinder,r_junction,l_flat,buff=50):
-            return
+            return np.array([l_cylinder,2 * (r_cylinder + r_junction) + l_flat,r_cylinder + r_junction + 2* buff])
 
 
         @staticmethod
         def gen_shape(template_bilayer,zo,r_cylinder,l_cylinder,r_junction,l_flat):
-            semicyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,
-                                     thickness, completeness=0.5)
-            junction = shapes.cylinder(template_bilayer,r_junction,l_cylinder,
-                                     thickness, completeness=0.25)
+            semicyl   = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=0.5)
+            junction  = shapes.cylinder.gen_shape(template_bilayer, zo, r_junction, l_cylinder, completeness=0.25)
             junction2 = copy(junction)
 
             # rotations and translations. 135 and 225 degrees gets junctions
@@ -749,8 +750,9 @@ class shapes:
             junction2.coords = rb.rotate_coordinates(junction2.coords,[225,0,0]) + [0,r_junction + r_cylinder,0]
 
             ''' THIS IS INCOMPLETE AND WRONG'''
-            flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords,axis=0)
-            flat_slice.coords = flat_slice.coords + [0,r_junction+r_cylinder+(y_flat/2),-r_junction]
+            slice_origin = template_bilayer.gen_slicepoint()
+            flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice([slice_origin[0],slice_origin[0]+l_cylinder],[slice_origin[1],slice_origin[1]+l_flat]))
+            flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords,axis=0) + [0,r_junction+r_cylinder+(l_flat/2),-r_junction]
             semicyl.append_pdb(junction)
             semicyl.append_pdb(junction2)
             semicyl.append_pdb(flat_slice)
@@ -768,11 +770,11 @@ class shapes:
 
         @staticmethod
         def gen_shape(template_bilayer,zo,r_cylinder,l_cylinder,r_junction,flat_dimension):
-            cyl = shapes.cylinder(template_bilayer,r_cylinder,l_cylinder,thickness,
+            cyl = shapes.cylinder.gen_shape(template_bilayer,zo,r_cylinder,l_cylinder,
                                   completeness=1)
             cyl.coords = rb.rotate_coordinates(cyl.coords,[0,90,0])
-            junction = shapes.partial_torus(template_bilayer,r_cylinder+r_junction,
-                                        r_junction,thickness,partial='inner')
+            junction = shapes.partial_torus(template_bilayer,zo,r_cylinder+r_junction,
+                                        r_junction,partial='inner')
             junction.coords = junction.coords +  [0,0,l_cylinder/2]
             junction_2 = copy(junction)
             junction_2.coords = rb.rotate_coordinates(junction_2.coords,[180,0,0])
@@ -798,13 +800,15 @@ class shapes:
             return
 
         @staticmethod
-        def gen_shape(template_bilayer,r,l_cylinder,thickness):
+        def gen_shape(template_bilayer,zo,r,l_cylinder):
             ''' Two semispheres connected by a cylinder'''
-            cyl = shapes.cylinder(template_bilayer,r,l_cylinder,thickness,completeness=1)
-            semisphere1 = shapes.semisphere(template_bilayer,r,thickness,completeness=1)
+            cyl = shapes.cylinder(template_bilayer,zo,r,l_cylinder,completeness=1)
+            semisphere1 = shapes.semisphere(template_bilayer,zo,r,completeness=1)
             semisphere2 = copy(semisphere1)
             semisphere1.coords = rb.rotate_coordinates(semisphere1.coords,[0, 90,0])
-            semisphere2.coords = rb.rotate_coordinates(semisphere2.coords,[0,270,0])
+            semisphere2.coords = rb.rotate_coordinates(semisphere2.coords,[0,270,0])For strings, consider whether you really need them to appear in your source code in the first place. If you have plans to localize the script (i.e. translate the messages), you're almost certainly going to want them in a separate file anyway.
+That said, wrapping things honestly isn't that bad. (And please don't use implicit concatenation; it's un-Pythonic - Explicit is better than implicit - and might conceivably go away; that's been proposed before.)
+This is my preferred style - using the natural "concatenation" of the print function (I don't use 2.x any more, but it still works there):
             semisphere1.coords[:,0] = semisphere1.coords[:,0] - l_cylinder / 2
             semisphere2.coords[:,0] = semisphere2.coords[:,0] + l_cylinder / 2
             cyl.append_pdb(semisphere1); cyl.append_pdb(semisphere2)
@@ -813,38 +817,41 @@ class shapes:
 
 def parse_command_lines():
     ''' Parses command line for parameters, returns parsed arguments '''
-    prog_name =  ''
-    prog_description = ''
-    geometry_description = 'temp_geometry'
-    optional_description = 'temp_optional'
-    output_description   = 'temp_output'
+    prog_name =  'JASON'
+    prog_description = 'Creating curved membrane systems with arbitrary geometry' + \
+    ' and lipid composition, using a pivotal plane-based approach to appropriately'+ \
+    ' match inter-leaflet area differences'
+
+    geometry_description = 'Geometric arguments should be added as a series of ' + \
+    'argument:value pairs separated by a colon.See the README for a list of required geometric arguments for a given shape.'
+
 
     parser = ArgumentParser(prog=prog_name,description=prog_description,
-                            add_help=False)
+                            add_help=False,allow_abbrev=False)
     # groups
     required_inputs     = parser.add_argument_group('required inputs')
     geometric_arguments = parser.add_argument_group('geometric arguments',
                           geometry_description)
-    optional_arguments  = parser.add_argument_group('optional arguments',
-                          optional_description)
-    output_arguments    = parser.add_argument_group('output arguments',
-                          output_description)
+    optional_arguments  = parser.add_argument_group('optional arguments')
+    output_arguments    = parser.add_argument_group('output arguments')
     # mandatory input
-    required_inputs.add_argument('-s','--shape',required=True)
-    required_inputs.add_argument('-f','--bilayer',required=True)
-    required_inputs.add_argument('-g','--geometry',nargs='*',required=True)
-    required_inputs.add_argument('-z','--zo',required=True, type=float)
+    required_inputs.add_argument('-s',help='Shape to make - see manual for a list of shapes',metavar='')
+    required_inputs.add_argument('-f',help='Flat bilayer template to be used as a template',metavar='')
+    required_inputs.add_argument('-z',type=float,help='Location of the pivotal plane (nm)',metavar='')
+
+    # geometry
+    geometric_arguments.add_argument('-g',nargs='*',required=True,help='Format is arg:value, ie r_cylinder:10, l_cylinder:20, ... for every geometric parameter in shape',metavar='')
+
 
     # optional arguments
-    optional_arguments.add_argument('-h','--help', action='help',
-                             help='show this help message and exit')
-    optional_arguments.add_argument('--outer_leaflet',default='top')
-    optional_arguments.add_argument('-uapl','--upper_area_per_lipid')
-    optional_arguments.add_argument('-lapl','--lower_area_per_lipid')
+    optional_arguments.add_argument('-h','--help', action='help', help='show this help message and exit')
+    optional_arguments.add_argument('-outer',default='top',help='By default, top leaflet = outer leaflet. Set to "bot" to invert',metavar='')
+    optional_arguments.add_argument('-uapl',metavar='',help='Slice top bilayer to achieve a specific area per lipid in final shape - not yet implemented')
+    optional_arguments.add_argument('-lapl',metavar='',help='Slice bottom bilayer to achieve a specific area per lipid in final shape - not yet implemented')
     # output files
-    output_arguments.add_argument('-o') # mandatory
-    output_arguments.add_argument('-p') # optional
-    output_arguments.add_argument('-n') # optional
+    output_arguments.add_argument('-o',help='Output structure - only PDBs for now',default='confout.pdb',metavar='')
+    output_arguments.add_argument('-p',help='Simple .top topology file',metavar='') # optional
+    output_arguments.add_argument('-n',help='Simple .ndx index file, separating leaflets',metavar='') # optional
     return parser.parse_args()
 
 def display_parameters(cl_args):
@@ -861,13 +868,18 @@ def main():
     display_parameters(args)  # show user what they selected
 
     # parse arguments
-    geometric_args = {garg.split(':')[0]:float(garg.split(':')[1]) for garg in args.geometry } # use a comprehension
-    zo = args.zo
+    geometric_args = {garg.split(':')[0]:float(garg.split(':')[1]) for garg in args.g } # use a comprehension
+    zo = args.z
     #shape_tobuild = getattr(shapes2.shapes,args.shape) This will be correct when compiled together
-    shape_tobuild = getattr(shapes,args.shape)
+    shape_tobuild = getattr(shapes,args.s)
 
     # adjust size of template bilayer
-    template_bilayer = Molecules(infile=args.bilayer)
+    template_bilayer = Molecules(infile=args.f)
+
+    if args.outer == 'bot':
+        template_bilayer.coords = rb.rotate_coordinates(template_bilayer.coords,[180,0,0])
+        template_bilayer.metadata.leaflets = np.invert(template_bilayer.metadata.leaflets)
+
     mult_factor = np.ceil( shape_tobuild.dimension_requirements(**geometric_args)/template_bilayer.boxdims[0:2]).astype(int)
     template_bilayer.duplicate_laterally(*mult_factor)
 

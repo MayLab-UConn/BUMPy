@@ -4,7 +4,6 @@
 
 from argparse import ArgumentParser
 import numpy as np
-import pandas as pd
 from time import time
 from copy import copy
 
@@ -173,6 +172,41 @@ class nrb:
 # Molecules class
 # ------------------------------------------------------------------------------
 
+class Metadata:
+    '''
+        Structure containing numpy arrays that contains atomnames, resnames, leaflet info, molecule info
+        atomname and resname are dtype <U4, leaflets and ressize are dtype int
+    '''
+
+    def __init__(self, atomname=[], resname=[], leaflets=[], ressize=[]):
+        self.atomname = atomname
+        self.resname  = resname
+        self.leaflets = leaflets
+        self.ressize  = ressize
+
+    def append(self, other):
+        self.atomname = np.concatenate((self.atomname, other.atomname))
+        self.resname  = np.concatenate((self.resname,  other.resname))
+        self.leaflets = np.concatenate((self.leaflets, other.leaflets))
+        self.ressize  = np.concatenate((self.ressize,  other.ressize))
+
+    def reorder(self, indices):
+        self.atomname = self.atomname[indices]
+        self.resname  = self.resname[indices]
+        self.leaflets = self.leaflets[indices]
+        self.ressize  = self.ressize[indices]
+
+    def duplicate(self, n):
+        self.atomname = np.tile(self.atomname, n)
+        self.resname  = np.tile(self.resname,  n)
+        self.leaflets = np.tile(self.leaflets, n)
+        self.ressize  = np.tile(self.ressize,  n)
+
+    def slice(self, indices):
+        return Metadata(atomname=self.atomname[indices], resname=self.resname[indices],
+                        leaflets=self.leaflets[indices], ressize=self.ressize[indices])
+
+
 class Molecules:
     '''
         Giant bloated mess of a class containing the coordinates and type data for flat input bilayers as well as
@@ -181,11 +215,10 @@ class Molecules:
         are then used by the shapes class.
 
         There are 2 major and 1 minor attributes in this class. Coords contain the 3D coordinates of a shape with
-        dimensions of n-particles * 3. Metadata is a pandas dataframe (will try to make my own structure later)
-        containing atom names, residue names, a record of which leaflet the lipid belongs to, and a "ressize" array
-        which I use to keep track of separate lipid molecules. For each atom in the system, if it is the first atom
-        sequentially in the molecule, ressize for that atom is set to the number of atoms in the molecule, and every
-        other atom in the molecule is set to 0.
+        dimensions of n-particles * 3. Metadata is an object containing atom names, residue names, a record of which
+        leaflet the lipid belongs to, and a "ressize" array which I use to keep track of separate lipid molecules. For
+        each atom in the system, if it is the first atom sequentially in the molecule, ressize for that atom is set to
+        the number of atoms in the molecule, and every other atom in the molecule is set to 0.
     '''
 
     def __init__(self, infile=None, metadata=[], coords=[], boxdims=[]):
@@ -221,7 +254,7 @@ class Molecules:
         '''
         new_index_order = np.append(np.where(self.metadata.leaflets == 1), np.where(self.metadata.leaflets == 0))
         self.coords = self.coords[new_index_order, :]
-        self.metadata.index = new_index_order
+        self.metadata.reorder(new_index_order)
 
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
@@ -229,12 +262,12 @@ class Molecules:
     def append_pdb(self, new_pdb, preserve_leaflets=True):
         '''appends all information from new_pdb to end of current pdb '''
         # strings
-        self.metadata = pd.concat((self.metadata, new_pdb.metadata))
+        self.metadata.append(new_pdb.metadata)
         self.coords   = np.vstack((self.coords,   new_pdb.coords  ))
 
-    def slice_pdb(self, slice_indices, preserve_leaflets=True):
+    def slice_pdb(self, slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
-        metadata_slice = self.metadata.ix[slice_indices]
+        metadata_slice = self.metadata.slice(slice_indices)
         molecule_slice = Molecules(infile=None, metadata=metadata_slice, coords=self.coords[slice_indices, :])
         return molecule_slice
 
@@ -253,7 +286,7 @@ class Molecules:
                 index += nparts
 
         # duplicate metadata
-        self.metadata = pd.DataFrame.from_dict({i : self.metadata[i].tolist() * nx * ny for i in self.metadata.columns})
+        self.metadata.duplicate(nx * ny)
         self.boxdims = [self.boxdims[0] * nx, self.boxdims[1] * ny, self.boxdims]
         self.coords = new_coords
 
@@ -268,10 +301,8 @@ class Molecules:
         com_indices = np.where(self.metadata.ressize > 0)[0]
         sizes  = self.metadata.ressize[com_indices]
         res_coms = np.zeros((sizes.size, 3))  # 0 will be empty
-        count = 0
-        for i in com_indices:
-            res_coms[count, :] = np.mean(self.coords[i:i + sizes[i], :], axis=0)
-            count += 1
+        for i, (ind, size) in enumerate(zip(com_indices, sizes)):
+            res_coms[i, :] = np.mean(self.coords[ind:ind + size, :], axis=0)
         return res_coms
 
     def rectangular_slice(self, xvals, yvals, exclude_radius=0, partial_molecule='res_com'):
@@ -295,7 +326,7 @@ class Molecules:
             all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
 
         if partial_molecule == 'exclude':
-            print('excluding partial molecules')
+            # print('excluding partial molecules')
             for i in range(len(self.resid_list)):
                 resvals = np.array(self.resid_list[i])
                 keep = True
@@ -307,7 +338,7 @@ class Molecules:
                     indices_tokeep = np.append(indices_tokeep, np.array(resvals))
 
         elif partial_molecule == 'res_com':
-            print('Excluding based on residue COM cutoff')
+            # print('Excluding based on residue COM cutoff')
 
             for i in all_inrange:
                 indices_tokeep.extend(list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
@@ -333,7 +364,7 @@ class Molecules:
                 if keep:
                     indices_tokeep = np.append(indices_tokeep, np.array(resvals))
         elif partial_molecule == 'res_com':
-            print('Excluding based on residue COM cutoff')
+            # print('Excluding based on residue COM cutoff')
             for i in all_inrange:
                 indices_tokeep.extend(list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
         return np.asarray(indices_tokeep)
@@ -344,19 +375,18 @@ class Molecules:
     def read_pdb(self, pdbfile, reorganize=False):
         '''Read input pdb
         '''
-        print('Reading in PDB file')
+        print('Reading in PDB file  ... ', end='', flush=True)
         t = time()
         with open(pdbfile, "r") as fid:
             # initialize temporary variables
             xcoord, ycoord, zcoord        = [], [], []                   # 3D coordinates
-            atomtype, atomname, resname   = [], [], []                    # invariant labels
+            atomname, resname             = [], []                       # invariant labels
             curr_res , prev_res, ressize  = [], [], []                    # residue indexing
             atomcount = 0                                             # counters
 
             for pdb_line in fid:
-                if pdb_line.startswith("ATOM") or pdb_line.startswith("HETATM"):
+                if pdb_line.startswith("ATOM"):
                     # strings
-                    atomtype.append(pdb_line[ 0: 6])
                     atomname.append(pdb_line[12:16])
                     resname.append( pdb_line[17:21])
 
@@ -383,21 +413,16 @@ class Molecules:
             ressize += [0] * (atomcount - 1)
             # close file here
 
-        zero_array = np.zeros(len(ressize), dtype=int)
-        self.metadata = pd.DataFrame(data={
-                                     'ressize'  : ressize,
-                                     'leaflets' : zero_array,
-                                     'atomtype' : atomtype,
-                                     'atomname' : atomname,
-                                     'resname'  : resname})
+        self.metadata = Metadata(atomname=np.array(atomname, dtype="<U4"),   resname=np.array(resname, dtype="<U4"),
+                                 leaflets=np.zeros(len(ressize), dtype=int), ressize=np.array(ressize, dtype=int))
         self.coords = np.array((xcoord, ycoord, zcoord)).T
         # assigning resid lengths and leaflets
         self.assign_leaflets()
-        print('Finished reading in PDB file with {} atoms,\
-              time elapsed = {:.1f} seconds'.format(self.coords.shape[0], time() - t))
+        print('Finished reading PDB with {:d} atoms - \
+               time elapsed = {:.1f} seconds'.format(self.coords.shape[0], time() - t))
 
     def write_pdb(self, outfile, position='positive', reorder=True):
-        print('Writing out PDB file')
+        print('Writing out PDB file ... ', end='', flush=True)
         t = time()
 
         if reorder:
@@ -429,7 +454,7 @@ class Molecules:
             # calculating residue and atom numbers
             resid = np.zeros(nparts, dtype=int)
             count = 1
-            ressize = self.metadata.ressize.tolist()
+            ressize = self.metadata.ressize
             for i in range(nparts):
                 size = ressize[i]
                 if size > 0:
@@ -438,15 +463,14 @@ class Molecules:
             resid = np.mod(resid, 10000)
             atomno = np.mod(np.arange(1, nparts + 1), 100000)
 
-            fout.writelines(["{:6s}{:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
-                            i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]) for i in zip(self.metadata.atomtype,
-                                                                                         atomno,
-                                                                                         self.metadata.atomname,
-                                                                                         self.metadata.resname,
-                                                                                         resid,
-                                                                                         out_coords[:, 0],
-                                                                                         out_coords[:, 1],
-                                                                                         out_coords[:, 2])])
+            fout.writelines(["ATOM  {:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
+                            i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(atomno,
+                                                                                   self.metadata.atomname,
+                                                                                   self.metadata.resname,
+                                                                                   resid,
+                                                                                   out_coords[:, 0],
+                                                                                   out_coords[:, 1],
+                                                                                   out_coords[:, 2])])
 
         print('Finished writing PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(nparts, time() - t))
 
@@ -454,7 +478,7 @@ class Molecules:
         '''Writes out simple topology file (.top)'''
         with open(outfile, 'w') as fout:
             fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
-            reslist = self.metadata.resname[np.where(self.metadata.resid_length > 0)[0]]
+            reslist = self.metadata.resname[np.where(self.metadata.ressize > 0)[0]]
             prev_res = reslist[0]
             counter = 0
             for res in reslist:
@@ -490,7 +514,7 @@ class Molecules:
         with open(outfile, 'w') as fout:
             top_atomno = np.where(self.metadata.leaflets == 1)[0] + 1
             bot_atomno = np.where(self.metadata.leaflets == 0)[0] + 1
-            write_index_unit(fout, "system", self.metadata.atomno)
+            write_index_unit(fout, "system", np.arange(1, self.coords.shape[0] + 1))
             write_index_unit(fout, "top leaflet", top_atomno)
             write_index_unit(fout, "bot leaflet", bot_atomno)
 
@@ -884,6 +908,8 @@ def main():
     # adjust size of template bilayer
     template_bilayer = Molecules(infile=args.f)
 
+    t = time()
+    print('Generating shape     ... ', end='', flush=True)
     if args.outer == 'bot':
         template_bilayer.coords = rb.rotate_coordinates(template_bilayer.coords, [180, 0, 0], com=True)
         template_bilayer.metadata.leaflets = np.invert(template_bilayer.metadata.leaflets)
@@ -895,6 +921,7 @@ def main():
     # construct the shape
     shape = shape_tobuild.gen_shape(template_bilayer, zo, **geometric_args)
     shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
+    print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
     # file output
     shape.write_pdb(args.o)
     if args.p:

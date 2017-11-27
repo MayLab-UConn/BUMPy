@@ -305,47 +305,43 @@ class Molecules:
             res_coms[i, :] = np.mean(self.coords[ind:ind + size, :], axis=0)
         return res_coms
 
-    def rectangular_slice(self, xvals, yvals, exclude_radius=0, partial_molecule='res_com'):
-        '''Slices pdb to include only rectangular segment from x[0] to x[1] and
-           y[0] to y[1]. Default is to exclude partial molecules, have option to
-           include partial molecules or make whole and include.
-
-           RETURNS INDICES, not actual slice
+    def rectangular_slice(self, xvals, yvals, exclude_radius=0, cutoff_method='com', nlips=None):
         '''
-        res_starts = np.where(self.metadata.ressize > 0)[0]
-        res_coms = self.calc_residue_COMS()
-        indices_tokeep = []
-        all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) &
-                                           (res_coms[:, 0] < xvals[1]) &
-                                           (res_coms[:, 1] > yvals[0]) &
-                                           (res_coms[:, 1] < yvals[1]) ))[0]
-        if exclude_radius > 0:
-            centered_coords = res_coms - [np.mean(xvals), np.mean(yvals), 0]
-            theta, rho, z = nrb.cart2pol(centered_coords)
-            rho_outside_exclusion = np.where(rho > exclude_radius)[0]
-            all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
+        '''
+        indices_to_keep = []
+        if cutoff_method == 'exclude':
+            all_inrange = []
+            inrange =  ((self.coords[:, 0] > xvals[0]) & (self.coords[:, 0] < xvals[1]) &
+                        (self.coords[:, 1] > yvals[0]) & (self.coords[:, 1] < yvals[1]) )
+            if exclude_radius > 0:
+                centered_coords = self.coords - [np.mean(xvals), np.mean(yvals), 0]
+                theta, rho, z = nrb.cart2pol(centered_coords)
+                rho_outside_exclusion = np.where(rho > exclude_radius)[0]
+                indices_tokeep = np.intersect1d(inrange, rho_outside_exclusion)
 
-        if partial_molecule == 'exclude':
-            # print('excluding partial molecules')
-            for i in range(len(self.resid_list)):
-                resvals = np.array(self.resid_list[i])
-                keep = True
-                for j in resvals:
-                    if j not in all_inrange:  # every index of residue must be
-                        keep = False         # in range
-                        break
-                if keep:
-                    indices_tokeep = np.append(indices_tokeep, np.array(resvals))
+            for i in np.where(self.metadata.ressize > 0)[0]:
+                natoms = self.metadata.ressize[i]
+                if np.all(inrange[i:i + natoms]):
+                    indices_to_keep += list(range(i, i + natoms))
 
-        elif partial_molecule == 'res_com':
-            # print('Excluding based on residue COM cutoff')
-
+        elif cutoff_method == 'com':
+            res_starts = np.where(self.metadata.ressize > 0)[0]
+            res_coms = self.calc_residue_COMS()
+            all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) &
+                                               (res_coms[:, 0] < xvals[1]) &
+                                               (res_coms[:, 1] > yvals[0]) &
+                                               (res_coms[:, 1] < yvals[1]) ))[0]
+            if exclude_radius > 0:
+                centered_coords = res_coms - [np.mean(xvals), np.mean(yvals), 0]
+                theta, rho, z = nrb.cart2pol(centered_coords)
+                rho_outside_exclusion = np.where(rho > exclude_radius)[0]
+                all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
             for i in all_inrange:
-                indices_tokeep.extend(list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
+                indices_to_keep += (list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
+
         return np.asarray(indices_tokeep)
 
-    def circular_slice(self, center, radius, exclude_radius=0,
-                       partial_molecule='res_com'):
+    def circular_slice(self, center, radius, exclude_radius=0, cutoff_method='com'):
         indices_tokeep = []
         res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
@@ -353,7 +349,7 @@ class Molecules:
         (theta, rho, z) = nrb.cart2pol(centered_coords)
         all_inrange = np.where((rho <= radius) & (rho >= exclude_radius))[0]
 
-        if partial_molecule == 'exclude':
+        if cutoff_method == 'exclude':
             for i in range(res_coms.size):
                 resvals = np.array(self.resid_list[i])
                 keep = True
@@ -363,7 +359,7 @@ class Molecules:
                         break
                 if keep:
                     indices_tokeep = np.append(indices_tokeep, np.array(resvals))
-        elif partial_molecule == 'res_com':
+        elif cutoff_method == 'com':
             # print('Excluding based on residue COM cutoff')
             for i in all_inrange:
                 indices_tokeep.extend(list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
@@ -375,8 +371,6 @@ class Molecules:
     def read_pdb(self, pdbfile, reorganize=False):
         '''Read input pdb
         '''
-        print('Reading in PDB file  ... ', end='', flush=True)
-        t = time()
         with open(pdbfile, "r") as fid:
             # initialize temporary variables
             xcoord, ycoord, zcoord        = [], [], []                   # 3D coordinates
@@ -418,12 +412,8 @@ class Molecules:
         self.coords = np.array((xcoord, ycoord, zcoord)).T
         # assigning resid lengths and leaflets
         self.assign_leaflets()
-        print('Finished reading PDB with {:d} atoms - \
-               time elapsed = {:.1f} seconds'.format(self.coords.shape[0], time() - t))
 
     def write_pdb(self, outfile, position='positive', reorder=True):
-        print('Writing out PDB file ... ', end='', flush=True)
-        t = time()
 
         if reorder:
             self.reorder_by_leaflet()
@@ -471,8 +461,6 @@ class Molecules:
                                                                                    out_coords[:, 0],
                                                                                    out_coords[:, 1],
                                                                                    out_coords[:, 2])])
-
-        print('Finished writing PDB file with {} atoms,time elapsed = {:.1f} seconds'.format(nparts, time() - t))
 
     def write_topology(self, outfile):
         '''Writes out simple topology file (.top)'''
@@ -567,7 +555,8 @@ class shapes:
             return np.array([2 * (r_sphere + buff), 2 * (r_sphere + buff), r_sphere + (2 * buff)])
 
         @ staticmethod
-        def gen_shape(template_bilayer, zo, r_sphere, contains_hole=False, completeness=1):
+        def gen_shape(template_bilayer, zo, r_sphere,
+                      contains_hole=False, completeness=1, cutoff_method='com'):
             ''' returns molecules instance of semisphere'''
             # calculating slice radii
             slice_radius = np.pi * r_sphere / 2
@@ -590,24 +579,6 @@ class shapes:
             top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords, r_sphere)
             return top_leaflet
 
-    class sphere(shape):
-
-        @staticmethod
-        def dimension_requirements(r_sphere, buff=50):
-            return shapes.semisphere.dimension_requirements(r_sphere)
-
-        @staticmethod
-        def final_dimensions(r_sphere, buff=50):
-            return np.array([2 * (r_sphere + buff)] * 3)
-
-        @staticmethod
-        def gen_shape(template_bilayer, zo, r_sphere, n_holes=0):
-            top_half = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, False)
-            bot_half = copy(top_half)
-            bot_half.coords = rb.rotate_coordinates(bot_half.coords, [180, 0, 0])
-            top_half.append_pdb(bot_half, preserve_leaflets=True)
-            return top_half
-
     class cylinder(shape):
 
         @staticmethod
@@ -618,7 +589,7 @@ class shapes:
         def final_dimensions(r_cylinder, l_cylinder, buff=50):
             return np.array([l_cylinder, r_cylinder + buff, r_cylinder + buff])
 
-        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1):
+        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1, cutoff_method='com'):
             '''Makes a cylinder with given parameters.
 
             Completeness=0.5 for semicylinder,
@@ -664,7 +635,7 @@ class shapes:
             return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
 
         @staticmethod
-        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full'):
+        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full', cutoff_method='com'):
             '''Makes a partial torus with given parameters
 
             The flat circular slice of a half_torus with torus R ranges from
@@ -730,6 +701,24 @@ class shapes:
                                                     exclude_radius=r_torus))
 
             return top_leaflet
+
+    class sphere(shape):
+
+        @staticmethod
+        def dimension_requirements(r_sphere, buff=50):
+            return shapes.semisphere.dimension_requirements(r_sphere)
+
+        @staticmethod
+        def final_dimensions(r_sphere, buff=50):
+            return np.array([2 * (r_sphere + buff)] * 3)
+
+        @staticmethod
+        def gen_shape(template_bilayer, zo, r_sphere, n_holes=0):
+            top_half = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, False)
+            bot_half = copy(top_half)
+            bot_half.coords = rb.rotate_coordinates(bot_half.coords, [180, 0, 0])
+            top_half.append_pdb(bot_half, preserve_leaflets=True)
+            return top_half
 
     class torus(shape):
         @staticmethod
@@ -876,10 +865,9 @@ def parse_command_lines():
     optional_arguments.add_argument('-h', '--help', action='help', help='show this help message and exit')
     optional_arguments.add_argument('-outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
-    optional_arguments.add_argument('-uapl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
-                                    'lipid in final shape - not yet implemented')
-    optional_arguments.add_argument('-lapl', metavar='', help='Slice bottom bilayer to achieve a specific area per' +
-                                    'lipid in final shape - not yet implemented')
+    optional_arguments.add_argument('-apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
+                                    'lipid in final shape - not yet implemented', default=None)
+
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
     output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
@@ -896,7 +884,6 @@ def display_parameters(cl_args):
 # Command line start
 # -----------------------------------------------------------------------------
 def main():
-    print('Parsing command line arguments\n')
     args = parse_command_lines()
     display_parameters(args)  # show user what they selected
 
@@ -905,29 +892,45 @@ def main():
     zo = args.z
     shape_tobuild = getattr(shapes, args.s)
 
-    # adjust size of template bilayer
-    template_bilayer = Molecules(infile=args.f)
-
+    # read in pdb
+    print('Reading in PDB file  ... ', end='', flush=True)
     t = time()
-    print('Generating shape     ... ', end='', flush=True)
+    template_bilayer = Molecules(infile=args.f)
+    print('Finished reading PDB with {:d} atoms - time elapsed = {:.1f} seconds'.format(
+          template_bilayer.coords.shape[0], time() - t))
+
+    # flip bilayer if bottom is selected, scale if selected, multiply laterally to appropriate size
     if args.outer == 'bot':
         template_bilayer.coords = rb.rotate_coordinates(template_bilayer.coords, [180, 0, 0], com=True)
         template_bilayer.metadata.leaflets = np.invert(template_bilayer.metadata.leaflets)
+    if args.apl:
+        currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
+        newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets
+        ratio = np.sqrt(newarea / currarea)
+        template_bilayer.coords = nrb.scale_coordinates_rectangular(template_bilayer.coords, ratio)
 
     mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
-                   template_bilayer.boxdims[0:2]).astype(int))
+                            template_bilayer.boxdims[0:2]).astype(int))
     template_bilayer.duplicate_laterally(*mult_factor)
 
+    # make shape
+    print('Generating shape     ... ', end='', flush=True)
+    t = time()
     # construct the shape
     shape = shape_tobuild.gen_shape(template_bilayer, zo, **geometric_args)
     shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
     print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
+
     # file output
+    print('Writing out PDB file ... ', end='', flush=True)
+    t = time()
     shape.write_pdb(args.o)
     if args.p:
         shape.write_topology(args.p)
     if args.n:
         shape.write_index(args.n)
+    print('Finished writing PDB file with {} atoms - time elapsed = {:.1f} seconds'.format(
+          shape.coords.shape[0], time() - t))
 
 
 if __name__ == '__main__':

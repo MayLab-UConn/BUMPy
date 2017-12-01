@@ -268,7 +268,7 @@ class Molecules:
     def slice_pdb(self, slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
         metadata_slice = self.metadata.slice(slice_indices)
-        molecule_slice = Molecules(infile=None, metadata=metadata_slice, coords=self.coords[slice_indices, :])
+        molecule_slice = Molecules(metadata=metadata_slice, coords=self.coords[slice_indices, :])
         return molecule_slice
 
     def duplicate_laterally(self, nx, ny):
@@ -317,7 +317,7 @@ class Molecules:
                 centered_coords = self.coords - [np.mean(xvals), np.mean(yvals), 0]
                 theta, rho, z = nrb.cart2pol(centered_coords)
                 rho_outside_exclusion = np.where(rho > exclude_radius)[0]
-                indices_tokeep = np.intersect1d(inrange, rho_outside_exclusion)
+                indices_to_keep = np.intersect1d(inrange, rho_outside_exclusion)
 
             for i in np.where(self.metadata.ressize > 0)[0]:
                 natoms = self.metadata.ressize[i]
@@ -337,9 +337,9 @@ class Molecules:
                 rho_outside_exclusion = np.where(rho > exclude_radius)[0]
                 all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
             for i in all_inrange:
-                indices_to_keep += (list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
+                indices_to_keep += list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]]))
 
-        return np.asarray(indices_tokeep)
+        return np.asarray(indices_to_keep)
 
     def circular_slice(self, center, radius, exclude_radius=0, cutoff_method='com'):
         indices_tokeep = []
@@ -555,8 +555,7 @@ class shapes:
             return np.array([2 * (r_sphere + buff), 2 * (r_sphere + buff), r_sphere + (2 * buff)])
 
         @ staticmethod
-        def gen_shape(template_bilayer, zo, r_sphere,
-                      contains_hole=False, completeness=1, cutoff_method='com'):
+        def gen_shape(template_bilayer, zo, r_sphere, r_hole=0, cutoff_method='com'):
             ''' returns molecules instance of semisphere'''
             # calculating slice radii
             slice_radius = np.pi * r_sphere / 2
@@ -564,8 +563,10 @@ class shapes:
             bot_slice_radius = np.sqrt(2) * (r_sphere - zo)
             slice_origin = np.mean(template_bilayer.coords[:, 0:2], axis=0)
             # calculate slice indices
-            in_top_circular_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius)
-            in_bot_circular_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius)
+            in_top_circular_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius,
+                                                                    exclude_radius=r_hole)
+            in_bot_circular_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius,
+                                                                    exclude_radius=r_hole)
             top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
             bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
             # make slices
@@ -611,16 +612,11 @@ class shapes:
             # make slices
             top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_slice, top_leaflet_ind))
             bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_slice, bot_leaflet_ind))
-
-            top_copy = copy(top_leaflet)
-            top_copy.append_pdb(bot_leaflet)
-
             # scale coordinates
             top_leaflet.coords = nrb.scale_coordinates_rectangular(top_leaflet.coords,
                                                                    [1, cylinder_slice_length / outer_slice_length])
             bot_leaflet.coords = nrb.scale_coordinates_rectangular(bot_leaflet.coords,
                                                                    [1, cylinder_slice_length / inner_slice_length])
-
             top_leaflet.append_pdb(bot_leaflet)
             top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords), r_cylinder)
             return top_leaflet
@@ -731,7 +727,7 @@ class shapes:
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_torus, r_tube, completeness=0.5):
-            top_half = shapes.partial_torus(template_bilayer, zo, r_torus, r_tube, partial='full')
+            top_half = shapes.partial_torus.gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full')
             bot_half = copy(top_half)
             bot_half.coords = rb.rotate_coordinates(bot_half.coords, [180, 0, 0])
             top_half.append_pdb(bot_half)
@@ -743,7 +739,7 @@ class shapes:
         def dimension_requirements(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
             cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder, completeness=0.5)
             flatdims = np.array([l_cylinder, l_flat])
-            jdims  =  shapes.cylinder.dimension_requirements(r_junction, l_cylinder, completeness=0.5)
+            jdims  =  shapes.cylinder.dimension_requirements(r_junction, l_cylinder, completeness=0.25)
             return np.array([max([cyldims[0], flatdims[0], jdims[0]]), max([cyldims[1], flatdims[1], jdims[1]])])
 
         @staticmethod
@@ -818,14 +814,14 @@ class shapes:
             return np.array([max([cyldims[0], sphdims[0]]), max([cyldims[1], sphdims[1]])])
 
         @staticmethod
-        def final_dimensions(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
+        def final_dimensions(r_cylinder, l_cylinder, buff=50):
             return np.array([l_cylinder + 2 * (r_cylinder + buff), 2 * (r_cylinder + buff), 2 * r_cylinder + buff ])
 
         @staticmethod
-        def gen_shape(template_bilayer, zo, r, l_cylinder):
+        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder):
             ''' Two semispheres connected by a cylinder'''
-            cyl = shapes.cylinder(template_bilayer, zo, r, l_cylinder, completeness=1)
-            semisphere1 = shapes.semisphere(template_bilayer, zo, r, completeness=1)
+            cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
+            semisphere1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_cylinder, completeness=1)
             semisphere2 = copy(semisphere1)
             semisphere1.coords = rb.rotate_coordinates(semisphere1.coords, [0, 90, 0])
             semisphere2.coords = rb.rotate_coordinates(semisphere2.coords, [0, 270, 0])
@@ -834,6 +830,48 @@ class shapes:
             cyl.append_pdb(semisphere1)
             cyl.append_pdb(semisphere2)
             return cyl
+
+    class sphere_cylinder(shape):
+        @staticmethod
+        def dimension_requirements(r_sphere, r_cylinder, l_cylinder, r_junction):
+            cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder, completeness=0.5)
+            sphdims = shapes.semisphere.dimension_requirements(r_sphere)
+            jdims  =  shapes.cylinder.dimension_requirements(r_junction, l_cylinder, completeness=0.5)
+            return np.array([max([cyldims[0], sphdims[0], jdims[0]]), max([cyldims[1], sphdims[1], jdims[1]])])
+
+        @staticmethod
+        def final_dimensions(r_sphere, r_cylinder, l_cylinder, r_junction, buff=50):
+            yzdim = 2 * (r_sphere + buff)
+            xdim  = l_cylinder + (2 * np.sqrt(r_sphere ** 2 - (r_cylinder + r_junction) ** 2)) + (2 * r_junction)
+            return np.array([xdim, yzdim, yzdim])
+
+        @staticmethod
+        def gen_shape(template_bilayer, zo, r_sphere, r_cylinder, l_cylinder, r_junction):
+            cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
+            sph1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, r_hole=r_cylinder + r_junction)
+            sph2 = copy(sph1)
+            sph1.coords = rb.rotate_coordinates(sph1.coords, [0,  90, 0])
+            sph2.coords = rb.rotate_coordinates(sph2.coords, [0, 270, 0])
+            junc1 = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction,
+                                                   r_junction, partial='inner')
+            junc2 = copy(junc1)
+            junc1.coords = rb.rotate_coordinates(junc1.coords, [0,  90, 0])
+            junc2.coords = rb.rotate_coordinates(junc2.coords, [0, 270, 0])
+
+            # the lateral distance from the center of the sphere to the hole is sqrt(Rtotal^2 - Rhole^2) by trig
+            d_sphere = np.sqrt(r_sphere ** 2 - (r_cylinder + r_junction) ** 2)
+
+            junc1.coords += [d_sphere + r_junction, 0, 0]
+            junc2.coords -= [d_sphere + r_junction, 0, 0]
+            cyl.coords += [(l_cylinder / 2) + d_sphere + r_junction , 0, 0 ]
+            cyl.append_pdb(sph1)
+            cyl.append_pdb(sph2)
+            cyl.append_pdb(junc1)
+            cyl.append_pdb(junc2)
+            return cyl
+
+    class semisphere_plane(shape):
+        pass
 
 
 def parse_command_lines():
@@ -882,7 +920,7 @@ def display_parameters(cl_args):
 
 # -----------------------------------------------------------------------------
 # Command line start
-# -----------------------------------------------------------------------------
+# ----------------------------- , l_flat,------------------------------------------------
 def main():
     args = parse_command_lines()
     display_parameters(args)  # show user what they selected

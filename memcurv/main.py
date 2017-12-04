@@ -287,7 +287,7 @@ class Molecules:
 
         # duplicate metadata
         self.metadata.duplicate(nx * ny)
-        self.boxdims = [self.boxdims[0] * nx, self.boxdims[1] * ny, self.boxdims]
+        self.boxdims = np.array([self.boxdims[0] * nx, self.boxdims[1] * ny, self.boxdims[2]])
         self.coords = new_coords
 
     # -------------------------------------------------------------------------
@@ -905,12 +905,29 @@ def parse_command_lines():
                                     'Set to "bot" to invert', metavar='')
     optional_arguments.add_argument('-apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
-
+    optional_arguments.add_argument('-dummy', metavar='', type=float,
+                                    help='Create dummy array with thickness specified')
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
     output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
     output_arguments.add_argument('-n', help='Simple .ndx index file, separating leaflets', metavar='')  # optional
     return parser.parse_args()
+
+
+def gen_dummy_grid(lateral_distance=5, thickness=50, atomname='DUMY', resname='DUMY'):
+    ''' Creates a  10 * 10 * 2 grid of dummy particles, with two sheet separated by thickness and
+        inter-particle distances separated by lateral distance
+    '''
+    coords = np.array(np.meshgrid(np.arange(10) * lateral_distance,
+                                  np.arange(10) * lateral_distance,
+                                  [ -thickness / 2, thickness / 2])).T.reshape(-1, 3)   # thanks @pv, stackoverflow
+    atomname = np.array([atomname] * 200, dtype="<U4")
+    resname  = np.array([resname]  * 200, dtype="<U4")
+    ressize = np.ones(200, dtype=int)
+    leaflets = coords[:, 2] > 0
+    meta = Metadata(atomname=atomname, resname=resname, leaflets=leaflets, ressize=ressize)
+    return Molecules(metadata=meta, coords=coords,
+                     boxdims=np.array([10 * lateral_distance, 10 * lateral_distance, thickness]))
 
 
 def display_parameters(cl_args):
@@ -957,12 +974,22 @@ def main():
     # construct the shape
     shape = shape_tobuild.gen_shape(template_bilayer, zo, **geometric_args)
     shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
+    shape.reorder_by_leaflet()
     print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
+
+    if args.dummy:
+        print('Creating dummy particles')
+        dummy_template = gen_dummy_grid(thickness=args.dummy)
+        mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
+                                dummy_template.boxdims[0:2]).astype(int))
+        dummy_template.duplicate_laterally(*mult_factor)
+        dummy_shape = shape_tobuild.gen_shape(dummy_template, zo, **geometric_args)
+        shape.append_pdb(dummy_shape)
 
     # file output
     print('Writing out PDB file ... ', end='', flush=True)
     t = time()
-    shape.write_pdb(args.o)
+    shape.write_pdb(args.o, reorder=False)
     if args.p:
         shape.write_topology(args.p)
     if args.n:

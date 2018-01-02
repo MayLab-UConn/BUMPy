@@ -786,7 +786,8 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, flat_dimension):
             cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
             cyl.coords = rb.rotate_coordinates(cyl.coords, [0, 90, 0])
-            junction = shapes.partial_torus(template_bilayer, zo, r_cylinder + r_junction, r_junction, partial='inner')
+            junction = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction,
+                                                      partial='inner')
             junction.coords = junction.coords +  [0, 0, l_cylinder / 2]
             junction_2 = copy(junction)
             junction_2.coords = rb.rotate_coordinates(junction_2.coords, [180, 0, 0])
@@ -943,7 +944,7 @@ def main():
     display_parameters(args)  # show user what they selected
 
     # parse arguments
-    geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }  # use a comprehension
+    geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }
     zo = args.z
     shape_tobuild = getattr(shapes, args.s)
 

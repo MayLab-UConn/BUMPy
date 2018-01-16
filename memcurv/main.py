@@ -2,9 +2,12 @@
 ''' Main script for memcurv project'''
 
 import numpy as np
+import inspect
+import sys
 from argparse import ArgumentParser
 from time import time
 from copy import copy
+
 
 __version__ = '0.5'
 
@@ -107,9 +110,9 @@ class Molecules:
                 return coords1D - np.mean(coords1D)
             elif type == 'range':
                 return coords1D - (np.max(coords1D) + np.min(coords1D)) / 2
-        self.coords[:, 0] = center_1D(self.coords[:, 0], x_center_type)
-        self.coords[:, 1] = center_1D(self.coords[:, 1], y_center_type)
-        self.coords[:, 2] = center_1D(self.coords[:, 2], z_center_type)
+        self.coords = np.stack((center_1D(self.coords[:, 0], x_center_type),
+                                center_1D(self.coords[:, 1], y_center_type),
+                                center_1D(self.coords[:, 2], z_center_type)), axis=1)
 
     def translate(self, offset):
         ''' offset is [x,y,z] translation'''
@@ -158,7 +161,9 @@ class Molecules:
         self.coords[:, 0:2] = self.coords[:, 0:2] * ratio
 
     def scale_coordinates_toroidal(self, current_range, new_range):
-        '''Radial coordinate scaling from one range of spaces to another'''
+        ''' Radial coordinate scaling from one range of spaces to another. This function is a mess but I don't feel
+            like reworking it for now
+        '''
         meanvals = np.mean(self.coords, axis=0)
         self.coords -= [meanvals[0], meanvals[1], 0]
         (theta, rho, z) = cart2pol(self.coords)                      # center and turn to polar coordinates
@@ -173,7 +178,6 @@ class Molecules:
         ''' Transforms a rectangular segment of coordinates into a cylinder with
             given radius r. Completeness of cylinder will depend on length of y
             dimension, x dimension is long axis of cylinder.
-
         '''
         self.center_coordinates_3D()
         radii = r + self.coords[:, 2]                                           # r is the desired radius, and is used
@@ -186,7 +190,6 @@ class Molecules:
         ''' Transforms a circular segment of coordinates into a sphere with
             given radius r. Completeness of sphere will depend on radius of circular
             bilayer patch.
-
         '''
         self.center_coordinates_3D()
         (theta, rho, z) = cart2pol(self.coords)
@@ -231,6 +234,16 @@ class Molecules:
         self.coords = self.coords[new_index_order, :]
         self.metadata.reorder(new_index_order)
 
+    def reorder_within_leaflet(self):
+        outer_resnames = np.unique(self.metadata.resname[self.metadata.leaflets == 1])
+        inner_resnames = np.unique(self.metadata.resname[self.metadata.leaflets == 0])
+        new_order = []
+        for resname in outer_resnames:
+            new_order += list(np.where((self.metadata.resname == resname) & (self.metadata.leaflets == 1))[0])
+        for resname in inner_resnames:
+            new_order += list(np.where((self.metadata.resname == resname) & (self.metadata.leaflets == 0))[0])
+        self.metadata.reorder(new_order)
+
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
@@ -238,7 +251,7 @@ class Molecules:
         '''appends all information from new_pdb to end of current pdb '''
         # strings
         self.metadata.append(new_pdb.metadata)
-        self.coords   = np.vstack((self.coords,   new_pdb.coords  ))
+        self.coords = np.vstack((self.coords, new_pdb.coords))
 
     def slice_pdb(self, slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
@@ -268,9 +281,9 @@ class Molecules:
     # -------------------------------------------------------------------------
     # calculating geometric slices
     # -------------------------------------------------------------------------
-    def gen_slicepoint(self):
+    def gen_slicepoint(self, buff=20):
         ''' Selects corner of a rectangular bilayer, with a slight buffer'''
-        return np.min(self.coords[:, 0:2], axis=0) + [20, 20]
+        return np.min(self.coords[:, 0:2], axis=0) + [buff, buff]
 
     def calc_residue_COMS(self):
         com_indices = np.where(self.metadata.ressize > 0)[0]
@@ -281,7 +294,7 @@ class Molecules:
         return res_coms
 
     def rectangular_slice(self, xvals, yvals, exclude_radius=0, cutoff_method='com', nlips=None):
-        '''
+        ''' The exclude method is broken right now. Doesn't actually slice bilayer, just returns indices to slice
         '''
         indices_to_keep = []
         if cutoff_method == 'exclude':
@@ -315,6 +328,7 @@ class Molecules:
         return np.asarray(indices_to_keep)
 
     def circular_slice(self, center, radius, exclude_radius=0, cutoff_method='com'):
+        ''' Exclude is broken right now. Doesn't actually slice bilayer, just returns indices to slice'''
         indices_tokeep = []
         res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
@@ -348,8 +362,8 @@ class Molecules:
             # initialize temporary variables
             xcoord, ycoord, zcoord        = [], [], []                   # 3D coordinates
             atomname, resname             = [], []                       # invariant labels
-            curr_res , prev_res, ressize  = [], [], []                    # residue indexing
-            atomcount = 0                                             # counters
+            curr_res , prev_res, ressize  = [], [], []                   # residue indexing
+            atomcount = 0                                                # counters
 
             for pdb_line in fid:
                 if pdb_line.startswith("ATOM"):
@@ -386,12 +400,11 @@ class Molecules:
         # assigning resid lengths and leaflets
         self.assign_leaflets()
 
-    def write_pdb(self, outfile, position='positive', reorder=True):
+    def write_pdb(self, outfile, position='positive', reorder=True, buff=8192, header=None):
 
         if reorder:
             self.reorder_by_leaflet()
-
-        '''Outputs to pdb file, CRYST1 and ATOM lines only'''
+            self.reorder_within_leaflet()
 
         # default is to bring everything to positive regime, allows for up to
         # 9999 angstroms in PDB file format
@@ -409,9 +422,10 @@ class Molecules:
             out_coords = self.coords
 
         nparts = self.coords.shape[0]
-        # write out box dims
 
-        with open(outfile, 'w') as fout:
+        with open(outfile, 'w', buff) as fout:
+            if header:
+                fout.write('REMARK  - Generated using command: {:s}\n'.format(header))
             fout.write('CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}\n'.format(*self.boxdims, 90))
 
             # calculating residue and atom numbers
@@ -561,7 +575,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_cylinder, l_cylinder, buff=50):
-            return np.array([l_cylinder, r_cylinder + buff, r_cylinder + buff])
+            return np.array([l_cylinder, 2 * (r_cylinder + buff), 2 * (r_cylinder + buff)])
 
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1, cutoff_method='com'):
             '''Makes a cylinder with given parameters.
@@ -764,7 +778,7 @@ class shapes:
                                                                                           r_cylinder + r_junction))
             flat_bilayer.coords -= flat_bilayer.coords.mean(axis=0)
             flat_bilayer.translate([0, 0, (l_cylinder / 2) + r_junction])
-            flat_bilayer.write_pdb('test.pdb')
+            #flat_bilayer.write_pdb('test.pdb')
 
             flat_bilayer_2 = copy(flat_bilayer)
             flat_bilayer_2.rotate([180, 0, 0])
@@ -864,11 +878,13 @@ def parse_command_lines():
     required_inputs.add_argument('-z', type=float, help='Location of the pivotal plane (nm)',  metavar='')
 
     # geometry
-    geometric_arguments.add_argument('-g', nargs='*', required=True, help='Format is arg:value, ie r_cylinder:10,' +
+    geometric_arguments.add_argument('-g', nargs='*', help='Format is arg:value, ie r_cylinder:10,' +
                                      ' l_cylinder:20, ... for every geometric parameter in shape', metavar='')
 
     # optional arguments
     optional_arguments.add_argument('-h', '--help', action='help', help='show this help message and exit')
+    optional_arguments.add_argument('-l', '--list', default=False, action='store_true',
+                                    help='List current repository of shapes and their geometric arguments')
     optional_arguments.add_argument('-outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
     optional_arguments.add_argument('-apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
@@ -879,6 +895,7 @@ def parse_command_lines():
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
     output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
     output_arguments.add_argument('-n', help='Simple .ndx index file, separating leaflets', metavar='')  # optional
+
     return parser.parse_args()
 
 
@@ -905,11 +922,22 @@ def display_parameters(cl_args):
 
 # -----------------------------------------------------------------------------
 # Command line start
-# ----------------------------- , l_flat,------------------------------------------------
+# -----------------------------------------------------------------------------
 def main():
+    cli = " ".join(sys.argv)
     args = parse_command_lines()
     display_parameters(args)  # show user what they selected
 
+    if args.list:
+        print('Shapes in repository, with listed arguments:\n')
+        for shape in inspect.getmembers(shapes):
+            if (not shape[0].startswith('_')) and  (shape[0] != 'shape'):
+                print('{:s}'.format(shape[0]))
+                sig = inspect.signature(shape[1].gen_shape)
+                for param in sig.parameters.values():    # 2: discards template and zo
+                    if param.default == param.empty and param.name != 'zo' and param.name != 'template_bilayer':
+                        print('    {:s}'.format(param.name))
+        exit()
     # parse arguments
     geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }
     zo = args.z
@@ -932,8 +960,8 @@ def main():
         ratio = np.sqrt(newarea / currarea)
         template_bilayer.scale_coordinates_rectangular(ratio)
 
-    mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
-                            template_bilayer.boxdims[0:2]).astype(int))
+    mult_factor = (np.ceil(shape_tobuild.dimension_requirements(**geometric_args) /
+                           template_bilayer.boxdims[0:2]).astype(int))
     template_bilayer.duplicate_laterally(*mult_factor)
 
     # make shape
@@ -942,7 +970,6 @@ def main():
     # construct the shape
     shape = shape_tobuild.gen_shape(template_bilayer, zo, **geometric_args)
     shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
-    shape.reorder_by_leaflet()
     print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
 
     if args.dummy:
@@ -957,7 +984,7 @@ def main():
     # file output
     print('Writing out PDB file ... ', end='', flush=True)
     t = time()
-    shape.write_pdb(args.o, reorder=False)
+    shape.write_pdb(args.o, header=cli)
     if args.p:
         shape.write_topology(args.p)
     if args.n:

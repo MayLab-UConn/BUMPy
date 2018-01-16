@@ -1,171 +1,31 @@
 
-
 ''' Main script for memcurv project'''
 
-from argparse import ArgumentParser
 import numpy as np
+from argparse import ArgumentParser
 from time import time
 from copy import copy
 
 __version__ = '0.5'
 
-# ------------------------------------------------------------------------------
-# Rigid Body stuff
-# ------------------------------------------------------------------------------
+
+def cart2pol(cart_coords):
+    ''' Converts cartesian to polar coordinates. Acts on first 2 columns (xy)
+        returns tuple of (theta,rho,z)
+    '''
+    x, y, z = cart_coords[:, 0], cart_coords[:, 1], cart_coords[:, 2]
+    theta    = np.arctan2(y, x)
+    rho  = np.sqrt(x**2 + y**2)
+    return(theta, rho, z)
 
 
-class rb:
-
-    @staticmethod
-    def center_coordinates_3D(coords, x_center_type='mean', y_center_type='mean', z_center_type='range'):
-        ''' Centers 3D cartesian coordinate system about the origin. Each dimension can be centered based on two
-             different criteria:
-                mean: subtracts average from coordinates
-                range:subtracts midpoint between maximum and minimum coordinate.
-            "range" should be used for centering z axis, as asymmetric bilayers can tilt the average
-        '''
-        def center_1D(coords1D, type):
-            if   type == 'mean':
-                return coords1D - np.mean(coords1D)
-            elif type == 'range':
-                return coords1D - (np.max(coords1D) + np.min(coords1D)) / 2
-        coords[:, 0] = center_1D(coords[:, 0], x_center_type)
-        coords[:, 1] = center_1D(coords[:, 1], y_center_type)
-        coords[:, 2] = center_1D(coords[:, 2], z_center_type)
-        return coords
-
-    @staticmethod
-    def rotate_coordinates(coords, rotation_angles, com=False, unit='degrees'):
-        ''' Rotational transform of coordinate system. Default rotation center is
-            about the origin (com=False). If com is set to True, rotation will occur
-            about center of mass of coordinates (with no weighting of particles).
-            Default input is in degrees, other option is 'radians'
-        '''
-        if unit == 'degrees':
-            rotation_angles = np.radians(rotation_angles)
-        if com:
-            com_coords = np.mean(coords, axis=0)
-            coords = coords - com_coords
-
-        r_x = np.array([[1,                       0,                              0],
-                        [0, np.cos(rotation_angles[0]), -np.sin(rotation_angles[0])],
-                        [0, np.sin(rotation_angles[0]), np.cos(rotation_angles[0])]])
-
-        r_y = np.array([[np.cos(rotation_angles[1]) , 0, np.sin(rotation_angles[1])],
-                        [0                       ,    1,                        0  ],
-                        [-np.sin(rotation_angles[1]), 0, np.cos(rotation_angles[1])]])
-
-        r_z = np.array([[np.cos(rotation_angles[2]), -np.sin(rotation_angles[2]), 0],
-                        [np.sin(rotation_angles[2]),  np.cos(rotation_angles[2]), 0],
-                        [0,                       0,                              1]])
-
-        rotmat = r_x.dot(r_y).dot(r_z)       # net rotation matrix
-        rotcoords = np.dot(coords, rotmat)   # do rotation
-        if com:
-            rotcoords = rotcoords + com_coords
-        return rotcoords
-# ------------------------------------------------------------------------------
-# NONRIGID BODY STUFF
-# ------------------------------------------------------------------------------
-
-
-class nrb:
-    @staticmethod
-    def cart2pol(cart_coords):
-        ''' Converts cartesian to polar coordinates. Acts on first 2 columns (xy)
-            returns tuple of (theta,rho,z)
-        '''
-        x = cart_coords[:, 0]
-        y = cart_coords[:, 1]
-        z = cart_coords[:, 2]
-        theta    = np.arctan2(y, x)
-        rho  = np.sqrt(x**2 + y**2)
-        return(theta, rho, z)
-
-    @staticmethod
-    def pol2cart(theta, rho, z):
-        ''' Converts polar to cartesian coordinates, outputs as nparts * xyz array
-        '''
-        x = rho * np.cos(theta)
-        y = rho * np.sin(theta)
-        cart_coords = np.stack((x, y, z), axis=1)
-        return cart_coords
-
-    # ------------------------------------------------------------------------------
-    # Coordinate scaling
-    # ------------------------------------------------------------------------------
-    @staticmethod
-    def scale_coordinates_radial(coords, ratio):
-        '''Coordinate scaling centered on 0'''
-        meanvals = np.mean(coords, axis=0)
-        coords = coords - [meanvals[0], meanvals[1], 0]
-        (theta, rho, z) = nrb.cart2pol(coords)
-        rho = rho * ratio
-        return nrb.pol2cart(theta, rho, z) + [meanvals[0], meanvals[1], 0]
-
-    @staticmethod
-    def scale_coordinates_rectangular(coords, ratio):
-        minvals = np.min(coords, axis=0)
-        coords = coords - [minvals[0], minvals[1], 0]  # push to 0,0,0 for minima
-        coords[:, 0:2] = coords[:, 0:2] * ratio
-        return coords + [minvals[0], minvals[1], 0]
-
-    @staticmethod
-    def scale_coordinates_toroid(coords, current_range, new_range):
-        '''Radial coordinate scaling from one range of spaces to another'''
-        meanvals = np.mean(coords, axis=0)
-        coords = coords - [meanvals[0], meanvals[1], 0]
-        (theta, rho, z) = nrb.cart2pol(coords)                      # center and turn to polar coordinates
-        curr_range_size = current_range[1] - current_range[0]
-        midpoint  = (current_range[0] + current_range[1]) / 2
-        new_range_size  = new_range[1] - new_range[0]
-        ratio = new_range_size / curr_range_size
-        rho = (rho - midpoint) * ratio  + midpoint
-        return nrb.pol2cart(theta, rho, z) + [meanvals[0], meanvals[1], 0]
-
-    # ------------------------------------------------------------------------------
-    # Main curving transformations
-    # ------------------------------------------------------------------------------
-    @staticmethod
-    def cylindrical_transform(xyz_coords, r, outer_leaflet='top'):
-        ''' Transforms a rectangular segment of coordinates into a cylinder with
-            given radius r. Completeness of cylinder will depend on length of y
-            dimension, x dimension is long axis of cylinder.
-
-        '''
-        xyz_coords = rb.center_coordinates_3D(xyz_coords)
-        radii = r + xyz_coords[:, 2]                                           # r is the desired radius, and is used
-        arc_length_angle = xyz_coords[:, 1]  /  r                              # to convert cartesian coordinate to an
-        y_transform = radii * np.sin(arc_length_angle)                         # angle, whereas the "radii" variable is
-        z_transform = radii * np.cos(arc_length_angle)                         # used for the actual transformation
-        return np.stack((xyz_coords[:, 0], y_transform, z_transform), axis=1)
-
-    @staticmethod
-    def spherical_transform(xyz_coords, r, outer_leaflet='top'):
-        ''' Transforms a circular segment of coordinates into a sphere with
-            given radius r. Completeness of sphere will depend on radius of circular
-            bilayer patch.
-
-        '''
-        xyz_coords = rb.center_coordinates_3D(xyz_coords)
-        (theta, rho, z) = nrb.cart2pol(xyz_coords)
-        radii = r + z
-        arc_length_angle = rho / r
-        rho_transform = radii * np.sin(arc_length_angle)
-        z_transform   = radii * np.cos(arc_length_angle)
-        return nrb.pol2cart(theta, rho_transform, z_transform)
-
-    @staticmethod
-    def toroidal_transform(xyz_coords, r_torus, r_tube):
-        xyz_coords = rb.center_coordinates_3D(xyz_coords)
-        (theta, rho, z) = nrb.cart2pol(xyz_coords)
-        arc_length = rho - (r_torus - (np.pi * r_tube / 2))
-        arc_length_angle = arc_length / r_tube
-        radii = r_tube + z
-        z_transform = radii * np.sin(arc_length_angle)
-        rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi / 2)
-
-        return nrb.pol2cart(theta, rho_transform, z_transform)
+def pol2cart(theta, rho, z):
+    ''' Converts polar to cartesian coordinates, outputs as nparts * xyz array
+    '''
+    x = rho * np.cos(theta)
+    y = rho * np.sin(theta)
+    cart_coords = np.stack((x, y, z), axis=1)
+    return cart_coords
 
 
 # ------------------------------------------------------------------------------
@@ -173,7 +33,7 @@ class nrb:
 # ------------------------------------------------------------------------------
 
 class Metadata:
-    '''
+    '''rapper for geometric transformations, so that shapes class operations don't look so ugly
         Structure containing numpy arrays that contains atomnames, resnames, leaflet info, molecule info
         atomname and resname are dtype <U4, leaflets and ressize are dtype int
     '''
@@ -231,6 +91,121 @@ class Molecules:
             self.coords   = coords
             self.metadata = metadata
             self.boxdims  = boxdims
+
+    # -----------------------------------------------------------------------------------------
+    # Geometric transformations
+    # -----------------------------------------------------------------------------------------
+    def center_coordinates_3D(self, x_center_type='mean', y_center_type='mean', z_center_type='range'):
+        ''' Centers 3D cartesian coordinate system about the origin. Each dimension can be centered based on two
+             different criteria:
+                mean: subtracts average from coordinates
+                range:subtracts midpoint between maximum and minimum coordinate.
+            "range" should be used for centering z axis, as asymmetric bilayers can tilt the average
+        '''
+        def center_1D(coords1D, type):
+            if   type == 'mean':
+                return coords1D - np.mean(coords1D)
+            elif type == 'range':
+                return coords1D - (np.max(coords1D) + np.min(coords1D)) / 2
+        self.coords[:, 0] = center_1D(self.coords[:, 0], x_center_type)
+        self.coords[:, 1] = center_1D(self.coords[:, 1], y_center_type)
+        self.coords[:, 2] = center_1D(self.coords[:, 2], z_center_type)
+
+    def translate(self, offset):
+        ''' offset is [x,y,z] translation'''
+        self.coords += offset
+
+    def rotate(self, rotation_angles, com=False, unit='degrees'):
+        ''' Rotational transform of coordinate system. Default rotation center is
+            about the origin (com=False). If com is set to True, rotation will occur
+            about center of mass of coordinates (with no weighting of particles).
+            Default input is in degrees, other option is 'radians'
+        '''
+        if unit == 'degrees':
+            rotation_angles = np.radians(rotation_angles)
+        if com:
+            init_com = self.coords.mean(axis=0)
+            self.coords -= init_com
+
+        r_x = np.array([[1,                       0,                              0],
+                        [0, np.cos(rotation_angles[0]), -np.sin(rotation_angles[0])],
+                        [0, np.sin(rotation_angles[0]), np.cos(rotation_angles[0])]])
+
+        r_y = np.array([[np.cos(rotation_angles[1]) , 0, np.sin(rotation_angles[1])],
+                        [0                       ,    1,                        0  ],
+                        [-np.sin(rotation_angles[1]), 0, np.cos(rotation_angles[1])]])
+
+        r_z = np.array([[np.cos(rotation_angles[2]), -np.sin(rotation_angles[2]), 0],
+                        [np.sin(rotation_angles[2]),  np.cos(rotation_angles[2]), 0],
+                        [0,                       0,                              1]])
+
+        rotmat = r_x.dot(r_y).dot(r_z)       # net rotation matrix
+        self.coords = np.dot(self.coords, rotmat)   # do rotation
+        if com:
+            self.coords += init_com
+
+    def scale_coordinates_radial(self, ratio):
+        '''Coordinate scaling centered on 0'''
+        meanvals = np.mean(self.coords, axis=0)
+        self.coords -= [meanvals[0], meanvals[1], 0]
+        (theta, rho, z) = cart2pol(self.coords)
+        rho = rho * ratio
+        self.coords = pol2cart(theta, rho, z)
+
+    def scale_coordinates_rectangular(self, ratio):
+        minvals = np.min(self.coords, axis=0)
+        self.coords -= [minvals[0], minvals[1], 0]  # push to 0,0,0 for minima
+        self.coords[:, 0:2] = self.coords[:, 0:2] * ratio
+
+    def scale_coordinates_toroidal(self, current_range, new_range):
+        '''Radial coordinate scaling from one range of spaces to another'''
+        meanvals = np.mean(self.coords, axis=0)
+        self.coords -= [meanvals[0], meanvals[1], 0]
+        (theta, rho, z) = cart2pol(self.coords)                      # center and turn to polar coordinates
+        curr_range_size = current_range[1] - current_range[0]
+        midpoint  = (current_range[0] + current_range[1]) / 2
+        new_range_size  = new_range[1] - new_range[0]
+        ratio = new_range_size / curr_range_size
+        rho = (rho - midpoint) * ratio  + midpoint
+        self.coords = pol2cart(theta, rho, z) + [meanvals[0], meanvals[1], 0]
+
+    def cylindrical_transform(self, r, outer_leaflet='top'):
+        ''' Transforms a rectangular segment of coordinates into a cylinder with
+            given radius r. Completeness of cylinder will depend on length of y
+            dimension, x dimension is long axis of cylinder.
+
+        '''
+        self.center_coordinates_3D()
+        radii = r + self.coords[:, 2]                                           # r is the desired radius, and is used
+        arc_length_angle = self.coords[:, 1]  /  r                              # to convert cartesian coordinate to an
+        y_transform = radii * np.sin(arc_length_angle)                         # angle, whereas the "radii" variable is
+        z_transform = radii * np.cos(arc_length_angle)                         # used for the actual transformation
+        self.coords = np.stack((self.coords[:, 0], y_transform, z_transform), axis=1)
+
+    def spherical_transform(self, r, outer_leaflet='top'):
+        ''' Transforms a circular segment of coordinates into a sphere with
+            given radius r. Completeness of sphere will depend on radius of circular
+            bilayer patch.
+
+        '''
+        self.center_coordinates_3D()
+        (theta, rho, z) = cart2pol(self.coords)
+        radii = r + z
+        arc_length_angle = rho / r
+        rho_transform = radii * np.sin(arc_length_angle)
+        z_transform   = radii * np.cos(arc_length_angle)
+        self.coords = pol2cart(theta, rho_transform, z_transform)
+
+    def toroidal_transform(self, r_torus, r_tube):
+        self.center_coordinates_3D()
+        (theta, rho, z) = cart2pol(self.coords)
+        arc_length = rho - (r_torus - (np.pi * r_tube / 2))
+        arc_length_angle = arc_length / r_tube
+        radii = r_tube + z
+        z_transform = radii * np.sin(arc_length_angle)
+        rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi / 2)
+        self.coords = pol2cart(theta, rho_transform, z_transform)
+
     # -------------------------------------------------------------------------
     # Calculate and superficially change dataset properties
     # -------------------------------------------------------------------------
@@ -268,7 +243,7 @@ class Molecules:
     def slice_pdb(self, slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
         metadata_slice = self.metadata.slice(slice_indices)
-        molecule_slice = Molecules(metadata=metadata_slice, coords=self.coords[slice_indices, :])
+        molecule_slice = Molecules(metadata=metadata_slice, coords=self.coords[slice_indices, :], boxdims=[0, 0, 0])
         return molecule_slice
 
     def duplicate_laterally(self, nx, ny):
@@ -315,7 +290,7 @@ class Molecules:
                         (self.coords[:, 1] > yvals[0]) & (self.coords[:, 1] < yvals[1]) )
             if exclude_radius > 0:
                 centered_coords = self.coords - [np.mean(xvals), np.mean(yvals), 0]
-                theta, rho, z = nrb.cart2pol(centered_coords)
+                theta, rho, z = cart2pol(centered_coords)
                 rho_outside_exclusion = np.where(rho > exclude_radius)[0]
                 indices_to_keep = np.intersect1d(inrange, rho_outside_exclusion)
 
@@ -327,13 +302,11 @@ class Molecules:
         elif cutoff_method == 'com':
             res_starts = np.where(self.metadata.ressize > 0)[0]
             res_coms = self.calc_residue_COMS()
-            all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) &
-                                               (res_coms[:, 0] < xvals[1]) &
-                                               (res_coms[:, 1] > yvals[0]) &
-                                               (res_coms[:, 1] < yvals[1]) ))[0]
+            all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) & (res_coms[:, 0] < xvals[1]) &
+                                               (res_coms[:, 1] > yvals[0]) & (res_coms[:, 1] < yvals[1]) ))[0]
             if exclude_radius > 0:
                 centered_coords = res_coms - [np.mean(xvals), np.mean(yvals), 0]
-                theta, rho, z = nrb.cart2pol(centered_coords)
+                theta, rho, z = cart2pol(centered_coords)
                 rho_outside_exclusion = np.where(rho > exclude_radius)[0]
                 all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
             for i in all_inrange:
@@ -346,7 +319,7 @@ class Molecules:
         res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
         centered_coords = res_coms - [center[0], center[1], 0]
-        (theta, rho, z) = nrb.cart2pol(centered_coords)
+        (theta, rho, z) = cart2pol(centered_coords)
         all_inrange = np.where((rho <= radius) & (rho >= exclude_radius))[0]
 
         if cutoff_method == 'exclude':
@@ -354,8 +327,8 @@ class Molecules:
                 resvals = np.array(self.resid_list[i])
                 keep = True
                 for j in resvals:
-                    if j not in all_inrange:  # every index of residue must be
-                        keep = False         # in range
+                    if j not in all_inrange:  # every index of residue must be in range
+                        keep = False
                         break
                 if keep:
                     indices_tokeep = np.append(indices_tokeep, np.array(resvals))
@@ -573,11 +546,11 @@ class shapes:
             top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
             bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_circular_slice, bot_leaflet_ind))
             # scale slices to slice_radius
-            top_leaflet.coords = nrb.scale_coordinates_radial(top_leaflet.coords, (slice_radius / top_slice_radius))
-            bot_leaflet.coords = nrb.scale_coordinates_radial(bot_leaflet.coords, (slice_radius / bot_slice_radius))
+            top_leaflet.scale_coordinates_radial(slice_radius / top_slice_radius)
+            bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
             # merge and transform slices
             top_leaflet.append_pdb(bot_leaflet)
-            top_leaflet.coords = nrb.spherical_transform(top_leaflet.coords, r_sphere)
+            top_leaflet.spherical_transform(r_sphere)
             return top_leaflet
 
     class cylinder(shape):
@@ -613,12 +586,10 @@ class shapes:
             top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_slice, top_leaflet_ind))
             bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_slice, bot_leaflet_ind))
             # scale coordinates
-            top_leaflet.coords = nrb.scale_coordinates_rectangular(top_leaflet.coords,
-                                                                   [1, cylinder_slice_length / outer_slice_length])
-            bot_leaflet.coords = nrb.scale_coordinates_rectangular(bot_leaflet.coords,
-                                                                   [1, cylinder_slice_length / inner_slice_length])
+            top_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / outer_slice_length])
+            bot_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / inner_slice_length])
             top_leaflet.append_pdb(bot_leaflet)
-            top_leaflet.coords = nrb.cylindrical_transform(rb.center_coordinates_3D(top_leaflet.coords), r_cylinder)
+            top_leaflet.cylindrical_transform(r_cylinder)
             return top_leaflet
 
     class partial_torus(shape):
@@ -673,12 +644,8 @@ class shapes:
             bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_circular_slice, bot_leaflet_ind))
 
             # scale slices to slice_radius
-            top_leaflet.coords = nrb.scale_coordinates_toroid(top_leaflet.coords,
-                                                              [outer_slice_min, outer_slice_max],
-                                                              [slice_min, slice_max])
-            bot_leaflet.coords = nrb.scale_coordinates_toroid(bot_leaflet.coords,
-                                                              [inner_slice_min, inner_slice_max],
-                                                              [slice_min, slice_max])
+            top_leaflet.scale_coordinates_toroidal([outer_slice_min, outer_slice_max], [slice_min, slice_max])
+            bot_leaflet.scale_coordinates_toroidal([inner_slice_min, inner_slice_max], [slice_min, slice_max])
 
             top_leaflet.append_pdb(bot_leaflet)
             # top_leaflet.write_pdb('torus_merge_notransform.pdb',position=False)
@@ -686,15 +653,14 @@ class shapes:
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
-            top_leaflet.coords = nrb.toroidal_transform(top_leaflet.coords, r_torus, r_tube)
+            top_leaflet.toroidal_transform(r_torus, r_tube)
             # top_leaflet.write_pdb('torus_transform.pdb',position=False)
             if partial == 'inner':
                 top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(
                                                     np.mean(top_leaflet.coords, axis=0), r_torus))
             elif partial == 'outer':
-                top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(
-                                                    np.mean(top_leaflet.coords, axis=0), r_torus + tube_circumference,
-                                                    exclude_radius=r_torus))
+                top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords, axis=0),
+                                                    r_torus + tube_circumference, exclude_radius=r_torus))
 
             return top_leaflet
 
@@ -712,7 +678,7 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_sphere, n_holes=0):
             top_half = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, False)
             bot_half = copy(top_half)
-            bot_half.coords = rb.rotate_coordinates(bot_half.coords, [180, 0, 0])
+            bot_half.rotate([180, 0, 0])
             top_half.append_pdb(bot_half, preserve_leaflets=True)
             return top_half
 
@@ -729,7 +695,7 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_torus, r_tube, completeness=0.5):
             top_half = shapes.partial_torus.gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full')
             bot_half = copy(top_half)
-            bot_half.coords = rb.rotate_coordinates(bot_half.coords, [180, 0, 0])
+            bot_half.rotate([180, 0, 0])
             top_half.append_pdb(bot_half)
             return top_half
 
@@ -756,15 +722,18 @@ class shapes:
             # rotated so that they max at 0 and taper to flat in the y direction
             # translation because they face the wrong direction and may not match
             # cylinder directions anyway
-            junction.coords = rb.rotate_coordinates(junction.coords,   [135, 0, 0]) - [0, r_junction + r_cylinder, 0]
-            junction2.coords = rb.rotate_coordinates(junction2.coords, [225, 0, 0]) + [0, r_junction + r_cylinder, 0]
+            junction.rotate([135, 0, 0])
+            junction.translate([0, -(r_junction + r_cylinder), 0])
+            junction2.rotate([225, 0, 0])
+            junction2.translate([0, r_junction + r_cylinder, 0])
 
             slice_origin = template_bilayer.gen_slicepoint()
             flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
                                                      [slice_origin[0], slice_origin[0] + l_cylinder],
                                                      [slice_origin[1], slice_origin[1] + l_flat]))
-            flat_slice.coords = flat_slice.coords - np.mean(flat_slice.coords, axis=0) + [0, r_junction + r_cylinder +
-                                                                                          (l_flat / 2), - r_junction]
+            flat_slice.center_coordinates_3D()
+            flat_slice.translate( [0, r_junction + r_cylinder + (l_flat / 2), - r_junction])
+
             semicyl.append_pdb(junction)
             semicyl.append_pdb(junction2)
             semicyl.append_pdb(flat_slice)
@@ -773,7 +742,7 @@ class shapes:
     class mitochondrion(shape):
         @staticmethod
         def dimension_requirements(r_cylinder, l_cylinder, r_junction, flat_dimension, buff=50):
-            cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder, completeness=0.5)
+            cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder)
             flatdims = np.array([flat_dimension] * 2)
             jdims  =  shapes.cylinder.dimension_requirements(r_junction, l_cylinder, completeness=0.5)
             return np.array([max([cyldims[0], flatdims[0], jdims[0]]), max([cyldims[1], flatdims[1], jdims[1]])])
@@ -782,25 +751,23 @@ class shapes:
         def final_dimensions(r_cylinder, l_cylinder, r_junction, flat_dimension, buff=50):
             return np.array([flat_dimension, flat_dimension, l_cylinder + 2 * (r_junction + buff)])
 
-        @staticmethod
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, flat_dimension):
             cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
-            cyl.coords = rb.rotate_coordinates(cyl.coords, [0, 90, 0])
+            cyl.rotate([0, 90, 0])
             junction = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction,
                                                       partial='inner')
-            junction.coords = junction.coords +  [0, 0, l_cylinder / 2]
+            junction.translate([0, 0, l_cylinder / 2])
             junction_2 = copy(junction)
-            junction_2.coords = rb.rotate_coordinates(junction_2.coords, [180, 0, 0])
+            junction_2.rotate( [180, 0, 0])
             flat_bilayer = template_bilayer.slice_pdb(template_bilayer.rectangular_slice( [20, flat_dimension + 20],
                                                                                           [20, flat_dimension + 20],
                                                                                           r_cylinder + r_junction))
-
-            flat_bilayer.coords = (flat_bilayer.coords -
-                                   flat_bilayer.coords.mean(axis=0) +
-                                   [0, 0, (l_cylinder / 2) + r_junction])
+            flat_bilayer.coords -= flat_bilayer.coords.mean(axis=0)
+            flat_bilayer.translate([0, 0, (l_cylinder / 2) + r_junction])
+            flat_bilayer.write_pdb('test.pdb')
 
             flat_bilayer_2 = copy(flat_bilayer)
-            flat_bilayer_2.coords = rb.rotate_coordinates(flat_bilayer.coords, [180, 0, 0])
+            flat_bilayer_2.rotate([180, 0, 0])
             cyl.append_pdb(junction)
             cyl.append_pdb(flat_bilayer)
             cyl.append_pdb(junction_2)
@@ -810,7 +777,7 @@ class shapes:
     class elongated_vesicle(shape):
         @staticmethod
         def dimension_requirements(r_cylinder, l_cylinder, buff=50):
-            cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder, completeness=0.5)
+            cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder)
             sphdims = shapes.semisphere.dimension_requirements(r_cylinder)
             return np.array([max([cyldims[0], sphdims[0]]), max([cyldims[1], sphdims[1]])])
 
@@ -822,10 +789,10 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder):
             ''' Two semispheres connected by a cylinder'''
             cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
-            semisphere1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_cylinder, completeness=1)
+            semisphere1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_cylinder)
             semisphere2 = copy(semisphere1)
-            semisphere1.coords = rb.rotate_coordinates(semisphere1.coords, [0, 90, 0])
-            semisphere2.coords = rb.rotate_coordinates(semisphere2.coords, [0, 270, 0])
+            semisphere1.rotate([0, 90, 0])
+            semisphere2.rotate([0, 270, 0])
             semisphere1.coords[:, 0] = semisphere1.coords[:, 0] - l_cylinder / 2
             semisphere2.coords[:, 0] = semisphere2.coords[:, 0] + l_cylinder / 2
             cyl.append_pdb(semisphere1)
@@ -851,13 +818,13 @@ class shapes:
             cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
             sph1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, r_hole=r_cylinder + r_junction)
             sph2 = copy(sph1)
-            sph1.coords = rb.rotate_coordinates(sph1.coords, [0,  90, 0])
-            sph2.coords = rb.rotate_coordinates(sph2.coords, [0, 270, 0])
+            sph1.rotate([0,  90, 0])
+            sph2.rotate([0, 270, 0])
             junc1 = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction,
                                                    r_junction, partial='inner')
             junc2 = copy(junc1)
-            junc1.coords = rb.rotate_coordinates(junc1.coords, [0,  90, 0])
-            junc2.coords = rb.rotate_coordinates(junc2.coords, [0, 270, 0])
+            junc1.rotate([0,  90, 0])
+            junc2.rotate([0, 270, 0])
 
             # the lateral distance from the center of the sphere to the hole is sqrt(Rtotal^2 - Rhole^2) by trig
             d_sphere = np.sqrt(r_sphere ** 2 - (r_cylinder + r_junction) ** 2)
@@ -957,13 +924,13 @@ def main():
 
     # flip bilayer if bottom is selected, scale if selected, multiply laterally to appropriate size
     if args.outer == 'bot':
-        template_bilayer.coords = rb.rotate_coordinates(template_bilayer.coords, [180, 0, 0], com=True)
+        template_bilayer.rotate([180, 0, 0], com=True)
         template_bilayer.metadata.leaflets = np.invert(template_bilayer.metadata.leaflets)
     if args.apl:
         currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
         newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets
         ratio = np.sqrt(newarea / currarea)
-        template_bilayer.coords = nrb.scale_coordinates_rectangular(template_bilayer.coords, ratio)
+        template_bilayer.scale_coordinates_rectangular(ratio)
 
     mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
                             template_bilayer.boxdims[0:2]).astype(int))

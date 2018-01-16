@@ -1,0 +1,7 @@
+sphere             r_sphere:100
+cylinder           r_cylinder:100 l_cylinder:300
+torus              r_torus:300 r_tube:100
+semicylinder_plane r_cylinder:100 l_cylinder:200 r_junction:50 l_flat:300
+mitochondrion      r_cylinder:200 l_cylinder:300 r_junction:100 flat_dimension:650
+elongated_vesicle  r_cylinder:100 l_cylinder:400
+sphere_cylinder    r_sphere:200 r_cylinder:100 l_cylinder:300 r_junction:50

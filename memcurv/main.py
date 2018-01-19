@@ -36,8 +36,7 @@ def pol2cart(theta, rho, z):
 # ------------------------------------------------------------------------------
 
 class Metadata:
-    '''rapper for geometric transformations, so that shapes class operations don't look so ugly
-        Structure containing numpy arrays that contains atomnames, resnames, leaflet info, molecule info
+    ''' Structure containing numpy arrays that contains atomnames, resnames, leaflet info, molecule info
         atomname and resname are dtype <U4, leaflets and ressize are dtype int
     '''
 
@@ -81,7 +80,8 @@ class Molecules:
         dimensions of n-particles * 3. Metadata is an object containing atom names, residue names, a record of which
         leaflet the lipid belongs to, and a "ressize" array which I use to keep track of separate lipid molecules. For
         each atom in the system, if it is the first atom sequentially in the molecule, ressize for that atom is set to
-        the number of atoms in the molecule, and every other atom in the molecule is set to 0.
+        the number of atoms in the molecule, and every other atom in the molecule is set to 0. Boxdims are the last
+        attribute, list of xyz box dimensions.
     '''
 
     def __init__(self, infile=None, metadata=[], coords=[], boxdims=[]):
@@ -98,21 +98,11 @@ class Molecules:
     # -----------------------------------------------------------------------------------------
     # Geometric transformations
     # -----------------------------------------------------------------------------------------
-    def center_coordinates_3D(self, x_center_type='mean', y_center_type='mean', z_center_type='range'):
-        ''' Centers 3D cartesian coordinate system about the origin. Each dimension can be centered based on two
-             different criteria:
-                mean: subtracts average from coordinates
-                range:subtracts midpoint between maximum and minimum coordinate.
-            "range" should be used for centering z axis, as asymmetric bilayers can tilt the average
-        '''
-        def center_1D(coords1D, type):
-            if   type == 'mean':
-                return coords1D - np.mean(coords1D)
-            elif type == 'range':
-                return coords1D - (np.max(coords1D) + np.min(coords1D)) / 2
-        self.coords = np.stack((center_1D(self.coords[:, 0], x_center_type),
-                                center_1D(self.coords[:, 1], y_center_type),
-                                center_1D(self.coords[:, 2], z_center_type)), axis=1)
+    def center_on_zero(self, ztype='bilayer_interface'):
+        meanvals = self.coords.mean(axis=0)
+        if ztype == 'bilayer_interface':    # other option is 'mean', which is just the simple average done above
+            meanvals[2] = self.get_bilayer_center()
+        self.coords -= meanvals
 
     def translate(self, offset):
         ''' offset is [x,y,z] translation'''
@@ -179,7 +169,7 @@ class Molecules:
             given radius r. Completeness of cylinder will depend on length of y
             dimension, x dimension is long axis of cylinder.
         '''
-        self.center_coordinates_3D()
+        self.center_on_zero()
         radii = r + self.coords[:, 2]                                           # r is the desired radius, and is used
         arc_length_angle = self.coords[:, 1]  /  r                              # to convert cartesian coordinate to an
         y_transform = radii * np.sin(arc_length_angle)                         # angle, whereas the "radii" variable is
@@ -191,7 +181,7 @@ class Molecules:
             given radius r. Completeness of sphere will depend on radius of circular
             bilayer patch.
         '''
-        self.center_coordinates_3D()
+        self.center_on_zero()
         (theta, rho, z) = cart2pol(self.coords)
         radii = r + z
         arc_length_angle = rho / r
@@ -200,7 +190,7 @@ class Molecules:
         self.coords = pol2cart(theta, rho_transform, z_transform)
 
     def toroidal_transform(self, r_torus, r_tube):
-        self.center_coordinates_3D()
+        self.center_on_zero()
         (theta, rho, z) = cart2pol(self.coords)
         arc_length = rho - (r_torus - (np.pi * r_tube / 2))
         arc_length_angle = arc_length / r_tube
@@ -225,6 +215,30 @@ class Molecules:
             ind = start_indices[i]
             leaflets[ind:ind + self.metadata.ressize[ind]] = int(coms[i] > bilayer_com)
         self.metadata.leaflets = leaflets
+
+    def get_bilayer_center(self, method='per_residue', nparts=None):
+        ''' The center of a bilayer is easy to calculate in a symmetric system but not in an asymmetric system, as
+            the thickenss of individual monolayers may differ, leaving no good point of comparison between the two.
+            The solution here is to calculate the closest points to the bilayer center for each leaflet, and take the
+            average of those
+        '''
+        if method == 'per_residue':
+            top_min = []
+            bot_max = []
+            for i in np.where(self.metadata.ressize > 0)[0]:
+                if self.metadata.leaflets[i]  == 1:
+                    top_min.append(self.coords[i:i + self.metadata.ressize[i], 2].min())
+                else:
+                    bot_max.append(self.coords[i:i + self.metadata.ressize[i], 2].max())
+
+        elif method == 'first_nparts':
+            if not nparts:
+                nparts = [np.sum((self.metadata.leaflets == 1) & (self.metadata.ressize > 0)),  # default 1 per residue
+                          np.sum((self.metadata.leaflets == 0) & (self.metadata.ressize > 0)) ]
+
+            top_min = np.sort(self.coords[self.metadata.leaflets == 1, 2])[:nparts[0]]
+            bot_max = np.sort(self.coords[self.metadata.leaflets == 0, 2])[-nparts[1]:]
+        return (np.array(top_min).mean() + np.array(bot_max).mean()) / 2
 
     def reorder_by_leaflet(self):
         ''' Switches up order of atoms so that top leaflet comes first,
@@ -491,7 +505,7 @@ class Molecules:
                                                                                        out_coords[:, 1],
                                                                                        out_coords[:, 2])])
                 fout.write(' {:9.5f} {:9.5f} {:9.5f}\n'.format(self.boxdims[0] / 10, self.boxdims[1] / 10,
-                                                             self.boxdims[2] / 10))
+                                                               self.boxdims[2] / 10))
             else:
                 if header:
                     fout.write('REMARK  - Generated using command: {:s}\n'.format(header))
@@ -606,8 +620,8 @@ class shapes:
             ''' returns molecules instance of semisphere'''
             # calculating slice radii
             slice_radius = np.pi * r_sphere / 2
-            top_slice_radius = np.sqrt(2) * (r_sphere + zo)
-            bot_slice_radius = np.sqrt(2) * (r_sphere - zo)
+            top_slice_radius = np.sqrt(2) * (r_sphere + zo[0])
+            bot_slice_radius = np.sqrt(2) * (r_sphere - zo[1])
             slice_origin = np.mean(template_bilayer.coords[:, 0:2], axis=0)
             # calculate slice indices
             in_top_circular_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius,
@@ -646,8 +660,8 @@ class shapes:
             # calculate slice lengths
             cylinder_slice_length = 2 * np.pi * r_cylinder * completeness
             slice_origin = np.min(template_bilayer.coords, axis=0)[0:2] + 40
-            outer_slice_length = 2 * np.pi * (r_cylinder + zo) * completeness
-            inner_slice_length = 2 * np.pi * (r_cylinder - zo) * completeness
+            outer_slice_length = 2 * np.pi * (r_cylinder + zo[0]) * completeness
+            inner_slice_length = 2 * np.pi * (r_cylinder - zo[1]) * completeness
             # calculate slice indices
             xvals = [slice_origin[0], slice_origin[0] + l_cylinder]
             yvals_outer = [slice_origin[1], slice_origin[1] + outer_slice_length]
@@ -696,8 +710,8 @@ class shapes:
             '''
 
             tube_circumference = 2 *  np.pi * r_tube
-            inner_tube_circumference = 2 * np.pi * (r_tube - zo)
-            outer_tube_circumference = 2 * np.pi * (r_tube + zo)
+            inner_tube_circumference = 2 * np.pi * (r_tube - zo[1])
+            outer_tube_circumference = 2 * np.pi * (r_tube + zo[0])
 
             slice_min = r_torus - (tube_circumference / 4)
             slice_max = r_torus + (tube_circumference / 4)
@@ -816,7 +830,7 @@ class shapes:
             flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
                                                      [slice_origin[0], slice_origin[0] + l_cylinder],
                                                      [slice_origin[1], slice_origin[1] + l_flat]))
-            flat_slice.center_coordinates_3D()
+            flat_slice.center_on_zero()
             flat_slice.translate( [0, r_junction + r_cylinder + (l_flat / 2), - r_junction])
 
             semicyl.append_pdb(junction)
@@ -955,7 +969,8 @@ def parse_command_lines():
     # mandatory input
     required_inputs.add_argument('-s', help='Shape to make - see manual for a list of shapes', metavar='')
     required_inputs.add_argument('-f', help='Flat bilayer template to be used as a template',  metavar='')
-    required_inputs.add_argument('-z', type=float, help='Location of the pivotal plane (nm)',  metavar='')
+    required_inputs.add_argument('-z', metavar='',
+                                 help='Location of the pivotal plane (nm). Just one value, or outer_zo:inner_zo')
 
     # geometry
     geometric_arguments.add_argument('-g', nargs='*', help='Format is arg:value, ie r_cylinder:10,' +
@@ -1020,7 +1035,11 @@ def main():
 
     # parse arguments
     geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }
-    zo = args.z
+
+    zo = [float(i) for i in args.z.split(':')]
+    if len(zo) == 1:    # if one value given, apply to both leaflets
+        zo *= 2
+
     shape_tobuild = getattr(shapes, args.s)
 
     # read in pdb

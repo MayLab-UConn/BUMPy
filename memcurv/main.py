@@ -242,6 +242,7 @@ class Molecules:
             new_order += list(np.where((self.metadata.resname == resname) & (self.metadata.leaflets == 1))[0])
         for resname in inner_resnames:
             new_order += list(np.where((self.metadata.resname == resname) & (self.metadata.leaflets == 0))[0])
+        self.coords = self.coords[new_order, :]
         self.metadata.reorder(new_order)
 
     # -------------------------------------------------------------------------
@@ -634,6 +635,7 @@ class shapes:
             total ratios, as opposed to cylinders (and spheres sorta). SO, will
             just do an additional slice of the half torus if quarter is selected
             '''
+
             tube_circumference = 2 *  np.pi * r_tube
             inner_tube_circumference = 2 * np.pi * (r_tube - zo)
             outer_tube_circumference = 2 * np.pi * (r_tube + zo)
@@ -707,6 +709,10 @@ class shapes:
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_torus, r_tube, completeness=0.5):
+
+            if r_tube >= r_torus:
+                raise UserWarning("r_torus should be less than r_tube for a ring torus")
+
             top_half = shapes.partial_torus.gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full')
             bot_half = copy(top_half)
             bot_half.rotate([180, 0, 0])
@@ -729,7 +735,13 @@ class shapes:
         @staticmethod
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, l_flat):
             semicyl   = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=0.5)
-            junction  = shapes.cylinder.gen_shape(template_bilayer, zo, r_junction, l_cylinder, completeness=0.25)
+
+            template_2 = copy(template_bilayer)
+            template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
+            template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
+
+            junction  = shapes.cylinder.gen_shape(template_2, zo, r_junction, l_cylinder, completeness=0.25)
+            junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
             junction2 = copy(junction)
 
             # rotations and translations. 135 and 225 degrees gets junctions
@@ -766,8 +778,12 @@ class shapes:
             return np.array([flat_dimension, flat_dimension, l_cylinder + 2 * (r_junction + buff)])
 
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, flat_dimension):
-            cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
-            cyl.rotate([0, 90, 0])
+            ''' "Top" leaflet will be IMS facing leaflet, so: TOP of flat region (no change), INSIDE of cylinder (flip),
+                and OUTSIDE of torus (no change)
+            '''
+            if (r_cylinder + r_junction) > (flat_dimension / 2):
+                raise UserWarning("Flat region too small for cylinder/junction radii")
+
             junction = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction,
                                                       partial='inner')
             junction.translate([0, 0, l_cylinder / 2])
@@ -778,10 +794,16 @@ class shapes:
                                                                                           r_cylinder + r_junction))
             flat_bilayer.coords -= flat_bilayer.coords.mean(axis=0)
             flat_bilayer.translate([0, 0, (l_cylinder / 2) + r_junction])
-            #flat_bilayer.write_pdb('test.pdb')
-
             flat_bilayer_2 = copy(flat_bilayer)
             flat_bilayer_2.rotate([180, 0, 0])
+
+            template_2 = copy(template_bilayer)
+            template_2.rotate([180, 0, 0])    # flip
+            template_2.metadata.leaflets = 1 - template_2.metadata.leaflets
+            cyl = shapes.cylinder.gen_shape(template_2, zo, r_cylinder, l_cylinder, completeness=1)
+            cyl.metadata.leaflets = 1 - cyl.metadata.leaflets
+            cyl.rotate([0, 90, 0])
+
             cyl.append_pdb(junction)
             cyl.append_pdb(flat_bilayer)
             cyl.append_pdb(junction_2)

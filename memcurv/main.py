@@ -491,8 +491,8 @@ class Molecules:
             top_atomno = np.where(self.metadata.leaflets == 1)[0] + 1
             bot_atomno = np.where(self.metadata.leaflets == 0)[0] + 1
             write_index_unit(fout, "system", np.arange(1, self.coords.shape[0] + 1))
-            write_index_unit(fout, "top leaflet", top_atomno)
-            write_index_unit(fout, "bot leaflet", bot_atomno)
+            write_index_unit(fout, "top_leaflet", top_atomno)
+            write_index_unit(fout, "bot_leaflet", bot_atomno)
 
 
 # ------------------------------------------------------------------------------
@@ -804,6 +804,10 @@ class shapes:
             cyl.metadata.leaflets = 1 - cyl.metadata.leaflets
             cyl.rotate([0, 90, 0])
 
+            cyl.write_pdb('cyl.pdb', position=None)
+            flat_bilayer.write_pdb('flat.pdb', position=None)
+            junction.write_pdb('junc.pdb', position=None)
+
             cyl.append_pdb(junction)
             cyl.append_pdb(flat_bilayer)
             cyl.append_pdb(junction_2)
@@ -887,8 +891,7 @@ def parse_command_lines():
     geometry_description = 'Geometric arguments should be added as a series of argument:value pairs separated by a ' + \
                            'colon .See the README for a list of required geometric arguments for a given shape.'
 
-    parser = ArgumentParser(prog=prog_name, description=prog_description,
-                            add_help=False, allow_abbrev=False)
+    parser = ArgumentParser(prog=prog_name, description=prog_description, add_help=False, allow_abbrev=False)
     # groups
     required_inputs     = parser.add_argument_group('required inputs')
     geometric_arguments = parser.add_argument_group('geometric arguments', geometry_description)
@@ -925,8 +928,7 @@ def gen_dummy_grid(lateral_distance=5, thickness=50, atomname='DUMY', resname='D
     ''' Creates a  10 * 10 * 2 grid of dummy particles, with two sheet separated by thickness and
         inter-particle distances separated by lateral distance
     '''
-    coords = np.array(np.meshgrid(np.arange(10) * lateral_distance,
-                                  np.arange(10) * lateral_distance,
+    coords = np.array(np.meshgrid(np.arange(10) * lateral_distance, np.arange(10) * lateral_distance,
                                   [ -thickness / 2, thickness / 2])).T.reshape(-1, 3)   # thanks @pv, stackoverflow
     atomname = np.array([atomname] * 200, dtype="<U4")
     resname  = np.array([resname]  * 200, dtype="<U4")
@@ -960,6 +962,7 @@ def main():
                     if param.default == param.empty and param.name != 'zo' and param.name != 'template_bilayer':
                         print('    {:s}'.format(param.name))
         exit()
+
     # parse arguments
     geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }
     zo = args.z

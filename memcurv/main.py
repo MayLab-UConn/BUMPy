@@ -89,7 +89,7 @@ class Molecules:
            Can also initialize with all objects blank, and wait for input
         '''
         if infile is not None:
-            self.read_pdb(infile)
+            self.read_input(infile)
         else:
             self.coords   = coords
             self.metadata = metadata
@@ -356,26 +356,36 @@ class Molecules:
     # -------------------------------------------------------------------------
     # file i/o
     # -------------------------------------------------------------------------
-    def read_pdb(self, pdbfile, reorganize=False):
+    def read_input(self, filein, fmt='pdb', reorganize=False):
         '''Read input pdb
         '''
-        with open(pdbfile, "r") as fid:
-            # initialize temporary variables
-            xcoord, ycoord, zcoord        = [], [], []                   # 3D coordinates
-            atomname, resname             = [], []                       # invariant labels
-            curr_res , prev_res, ressize  = [], [], []                   # residue indexing
-            atomcount = 0                                                # counters
+        with open(filein, "r") as fid:
 
-            for pdb_line in fid:
-                if pdb_line.startswith("ATOM"):
-                    # strings
-                    atomname.append(pdb_line[12:16])
-                    resname.append( pdb_line[17:21])
+            if filein[-4:] == '.gro':   # default is pdb
+                # remember to convert to angstroms
+                stringin = fid.readlines()
+                stringin.pop(0)      # remove first line
 
-                    # counting residues
+                temp = stringin.pop()
+                while temp.isspace():
+                    temp = stringin.pop()    # take care of any trailing whitespace
+                self.boxdims = [10 * float(i) for i in temp.split()[0:3]]   # final line is box coordinates
+
+                n_atoms = int(stringin.pop(0).strip())
+                self.coords = np.empty((len(stringin), 3))
+
+                atomname = np.empty(n_atoms, dtype="<U4")
+                resname  = np.empty(n_atoms, dtype="<U4")
+                curr_res , prev_res, ressize  = [], [], []                   # residue indexing
+
+                atomcount = 0
+                for i, line in enumerate(stringin):
+                    atomname[i] = line[11:15]
+                    resname[i] =  line[5:9]
+                    self.coords[i, :] = [10 * float(j) for j in line[20:43].split()]
                     if not prev_res:  # first iteration
-                        prev_res = pdb_line[22:26]
-                    curr_res = pdb_line[22:26]
+                        prev_res = line[0:5]
+                    curr_res = line[0:5]
                     if curr_res == prev_res:
                         atomcount += 1
                     else:
@@ -383,25 +393,55 @@ class Molecules:
                         ressize += [0] * (atomcount - 1)
                         atomcount = 1
                         prev_res = curr_res
+                ressize.append(atomcount)  # one more for final residue
+                ressize += [0] * (atomcount - 1)
+                self.metadata = Metadata(atomname=atomname,
+                                         resname=resname,
+                                         leaflets=np.zeros(len(ressize), dtype=int),
+                                         ressize=np.array(ressize, dtype=int))
 
-                    # floats for coordinate array
-                    xcoord.append(float(pdb_line[30:38]))
-                    ycoord.append(float(pdb_line[38:46]))
-                    zcoord.append(float(pdb_line[46:54]))
-                elif pdb_line.startswith('CRYST1'):
-                    self.boxdims = [float(i) for i in pdb_line.split()[1:4]]
+            else:
+                xcoord, ycoord, zcoord        = [], [], []                   # 3D coordinates
+                atomname, resname             = [], []                       # invariant labels
+                curr_res , prev_res, ressize  = [], [], []                   # residue indexing
+                atomcount = 0                                                # counters
+                for pdb_line in fid:
+                    if pdb_line.startswith("ATOM"):
+                        # strings
+                        atomname.append(pdb_line[12:16])
+                        resname.append( pdb_line[17:21])
 
-            ressize.append(atomcount)  # one more for final residue
-            ressize += [0] * (atomcount - 1)
-            # close file here
+                        # counting residues
+                        if not prev_res:  # first iteration
+                            prev_res = pdb_line[22:26]
+                        curr_res = pdb_line[22:26]
+                        if curr_res == prev_res:
+                            atomcount += 1
+                        else:
+                            ressize.append(atomcount)
+                            ressize += [0] * (atomcount - 1)
+                            atomcount = 1
+                            prev_res = curr_res
 
-        self.metadata = Metadata(atomname=np.array(atomname, dtype="<U4"),   resname=np.array(resname, dtype="<U4"),
-                                 leaflets=np.zeros(len(ressize), dtype=int), ressize=np.array(ressize, dtype=int))
-        self.coords = np.array((xcoord, ycoord, zcoord)).T
+                        # floats for coordinate array
+                        xcoord.append(float(pdb_line[30:38]))
+                        ycoord.append(float(pdb_line[38:46]))
+                        zcoord.append(float(pdb_line[46:54]))
+                    elif pdb_line.startswith('CRYST1'):
+                        self.boxdims = [float(i) for i in pdb_line.split()[1:4]]
+
+                ressize.append(atomcount)  # one more for final residue
+                ressize += [0] * (atomcount - 1)
+                self.metadata = Metadata(atomname=np.array(atomname, dtype="<U4"),
+                                         resname=np.array(resname, dtype="<U4"),
+                                         leaflets=np.zeros(len(ressize), dtype=int),
+                                         ressize=np.array(ressize, dtype=int))
+                self.coords = np.array((xcoord, ycoord, zcoord)).T
+
         # assigning resid lengths and leaflets
         self.assign_leaflets()
 
-    def write_pdb(self, outfile, position='positive', reorder=True, buff=8192, header=None):
+    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None):
 
         if reorder:
             self.reorder_by_leaflet()
@@ -422,33 +462,52 @@ class Molecules:
         else:
             out_coords = self.coords
 
+        # generating resid list
         nparts = self.coords.shape[0]
+        resid = np.zeros(nparts, dtype=int)
+        count = 1
+        ressize = self.metadata.ressize
+        for i in range(nparts):
+            size = ressize[i]
+            if size > 0:
+                resid[i:i + size] = count
+                count += 1
 
         with open(outfile, 'w', buff) as fout:
-            if header:
-                fout.write('REMARK  - Generated using command: {:s}\n'.format(header))
-            fout.write('CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}\n'.format(*self.boxdims, 90))
+            if outfile[-4:] == '.gro':  # defaults to pdb otherwise
+                out_coords /= 10    # interal is angstroms, need to get back to nm
+                if header:
+                    fout.write('Generated using command: {:s}\n'.format(header))
+                else:
+                    fout.write('created using Jason\n')
+                fout.write(' {:d}\n'.format(nparts))
+                resid = np.mod(resid, 100000)    # 99,999 max for gro
+                atomno = np.mod(np.arange(1, nparts + 1), 100000)
+                fout.writelines(["{:5d}{:5s}{:5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
+                                i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(resid, self.metadata.resname,
+                                                                                       self.metadata.atomname,
+                                                                                       atomno,
+                                                                                       out_coords[:, 0],
+                                                                                       out_coords[:, 1],
+                                                                                       out_coords[:, 2])])
+                fout.write(' {:9.5f} {:9.5f} {:9.5f}\n'.format(self.boxdims[0] / 10, self.boxdims[1] / 10,
+                                                             self.boxdims[2] / 10))
+            else:
+                if header:
+                    fout.write('REMARK  - Generated using command: {:s}\n'.format(header))
+                fout.write('CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}\n'.format(*self.boxdims, 90))
 
-            # calculating residue and atom numbers
-            resid = np.zeros(nparts, dtype=int)
-            count = 1
-            ressize = self.metadata.ressize
-            for i in range(nparts):
-                size = ressize[i]
-                if size > 0:
-                    resid[i:i + size] = count
-                    count += 1
-            resid = np.mod(resid, 10000)
-            atomno = np.mod(np.arange(1, nparts + 1), 100000)
+                # calculating residue and atom numbers
+                resid = np.mod(resid, 10000)   # 9,999 max for pdb
+                atomno = np.mod(np.arange(1, nparts + 1), 100000)
 
-            fout.writelines(["ATOM  {:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
-                            i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(atomno,
-                                                                                   self.metadata.atomname,
-                                                                                   self.metadata.resname,
-                                                                                   resid,
-                                                                                   out_coords[:, 0],
-                                                                                   out_coords[:, 1],
-                                                                                   out_coords[:, 2])])
+                fout.writelines(["ATOM  {:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
+                                i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(atomno, self.metadata.atomname,
+                                                                                       self.metadata.resname,
+                                                                                       resid,
+                                                                                       out_coords[:, 0],
+                                                                                       out_coords[:, 1],
+                                                                                       out_coords[:, 2])])
 
     def write_topology(self, outfile):
         '''Writes out simple topology file (.top)'''
@@ -664,13 +723,13 @@ class shapes:
             bot_leaflet.scale_coordinates_toroidal([inner_slice_min, inner_slice_max], [slice_min, slice_max])
 
             top_leaflet.append_pdb(bot_leaflet)
-            # top_leaflet.write_pdb('torus_merge_notransform.pdb',position=False)
+            # top_leaflet.write_coordinates('torus_merge_notransform.pdb',position=False)
             # check quarter torus, use circular slice to cut off one side or other
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
             top_leaflet.toroidal_transform(r_torus, r_tube)
-            # top_leaflet.write_pdb('torus_transform.pdb',position=False)
+            # top_leaflet.write_coordinates('torus_transform.pdb',position=False)
             if partial == 'inner':
                 top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(
                                                     np.mean(top_leaflet.coords, axis=0), r_torus))
@@ -803,10 +862,6 @@ class shapes:
             cyl = shapes.cylinder.gen_shape(template_2, zo, r_cylinder, l_cylinder, completeness=1)
             cyl.metadata.leaflets = 1 - cyl.metadata.leaflets
             cyl.rotate([0, 90, 0])
-
-            cyl.write_pdb('cyl.pdb', position=None)
-            flat_bilayer.write_pdb('flat.pdb', position=None)
-            junction.write_pdb('junc.pdb', position=None)
 
             cyl.append_pdb(junction)
             cyl.append_pdb(flat_bilayer)
@@ -1009,7 +1064,7 @@ def main():
     # file output
     print('Writing out PDB file ... ', end='', flush=True)
     t = time()
-    shape.write_pdb(args.o, header=cli)
+    shape.write_coordinates(args.o, header=cli)
     if args.p:
         shape.write_topology(args.p)
     if args.n:

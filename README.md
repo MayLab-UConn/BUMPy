@@ -49,11 +49,20 @@ tips
 Input bilayer
 -Templates used as starting structures for memcurv need to contain WHOLE lipid
  molecules (ie - not broken across periodic boundaries)
+
 -Template bilayers do NOT need to be large enough to wrap the flat bilayer into
- the desired shape - memcurv will multiply the input laterally to create a flat
- bilayer of sufficient size. this does mean that the original box dimensions
+ the desired shape; memcurv will multiply the input laterally to create a flat
+ bilayer of sufficient size. This does mean that the original box dimensions
  need to be correctly set 
 
 Shapes
--
+-All shapes are contained in the shapes class. The requirements for adding 
+ a shape to the repository are described in the shapes documentation
+-Descriptions of supported shapes can be found in the shapes.pdf document. Note
+ that for some shapes the terms "inner" and "outer" leaflets are ambiguous, so
+ for those shapes a convention of "inner" and "outer" was chosen and is listed
+ in the document. This convention does not change any of the pivotal-plane
+ calculations. 
+
+
 

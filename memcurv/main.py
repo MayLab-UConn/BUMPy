@@ -1075,7 +1075,7 @@ def main():
     shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
     print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
 
-    if args.dummy:
+    if args.dummy_grid_thickness:
         print('Creating dummy particles')
         dummy_template = gen_dummy_grid(thickness=args.dummy_grid_thickness, lateral_distance=args.dummy_grid_spacing)
         mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /

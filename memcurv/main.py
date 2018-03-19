@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 ''' Main script for memcurv project'''
 
@@ -37,7 +38,9 @@ def pol2cart(theta, rho, z):
 
 class Metadata:
     ''' Structure containing numpy arrays that contains atomnames, resnames, leaflet info, molecule info
-        atomname and resname are dtype <U4, leaflets and ressize are dtype int
+        atomname and resname are dtype <U4, leaflets and ressize are dtype int.
+
+        Supports appending, duplication, slicing, and reordering operations
     '''
 
     def __init__(self, atomname=[], resname=[], leaflets=[], ressize=[]):
@@ -172,8 +175,8 @@ class Molecules:
         self.center_on_zero()
         radii = r + self.coords[:, 2]                                           # r is the desired radius, and is used
         arc_length_angle = self.coords[:, 1]  /  r                              # to convert cartesian coordinate to an
-        y_transform = radii * np.sin(arc_length_angle)                         # angle, whereas the "radii" variable is
-        z_transform = radii * np.cos(arc_length_angle)                         # used for the actual transformation
+        y_transform = radii * np.sin(arc_length_angle)                          # angle, whereas the "radii" variable is
+        z_transform = radii * np.cos(arc_length_angle)                          # used for the actual transformation
         self.coords = np.stack((self.coords[:, 0], y_transform, z_transform), axis=1)
 
     def spherical_transform(self, r, outer_leaflet='top'):
@@ -262,8 +265,8 @@ class Molecules:
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
-    def append_pdb(self, new_pdb, preserve_leaflets=True):
-        '''appends all information from new_pdb to end of current pdb '''
+    def append(self, new_pdb, preserve_leaflets=True):
+        '''appends all information from new_pdb to end of current pdb. Doesn't change boxdims at this point '''
         # strings
         self.metadata.append(new_pdb.metadata)
         self.coords = np.vstack((self.coords, new_pdb.coords))
@@ -581,7 +584,7 @@ class shapes:
             1. dimension_requirements - returns an xy dimension which is the minimum size the flat template can be.
             2. final_dimensions       - returns an xyz array of box dimensions for the final shape. This is important
                                         mostly for shapes that have at least 1 periodic connection that need exact
-                                        boundaries. It's not so important for closed shapes, and anyone using this will
+                                        boundaries. It's not so important for closed shapes, and anyone making them will
                                         likely want to change the boundaries of those to establish a certain buffer
                                         prior to solvation
             3. gen_shape              - returns the desired shape in the form of a Molecules instance.
@@ -637,7 +640,7 @@ class shapes:
             top_leaflet.scale_coordinates_radial(slice_radius / top_slice_radius)
             bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
             # merge and transform slices
-            top_leaflet.append_pdb(bot_leaflet)
+            top_leaflet.append(bot_leaflet)
             top_leaflet.spherical_transform(r_sphere)
             return top_leaflet
 
@@ -676,7 +679,7 @@ class shapes:
             # scale coordinates
             top_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / outer_slice_length])
             bot_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / inner_slice_length])
-            top_leaflet.append_pdb(bot_leaflet)
+            top_leaflet.append(bot_leaflet)
             top_leaflet.cylindrical_transform(r_cylinder)
             return top_leaflet
 
@@ -693,20 +696,18 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full', cutoff_method='com'):
             '''Makes a partial torus with given parameters
 
-            The flat circular slice of a half_torus with torus R ranges from
-            (R-r') to (R+r'), where r' = circumference of tube / 4
+            The flat circular slice of a half_torus with torus R ranges from(R-r') to (R+r'),
+            where r' = circumference of tube / 4
 
-            Can get a quarter torus as well using partial='inner' for the shorter
-            junction, partial ='outer' for the larger
+            Can get a quarter torus as well using partial='inner' for the shorter junction,
+            partial ='outer' for the larger
 
-            partial tori are oriented so that the cylindrical edges point DOWN,
-            and has a minimum at 0 z
+            partial tori are oriented so that the cylindrical edges point DOWN, and has a minimum at 0 z
 
-            I can't figure out good math on where to center / scale a quarter torus,
-            in regards to the the effect of slicing on lipid ratios. Ie, can't just
-            match length of slice to tube radius, as >>WHERE<< you slice changes
-            total ratios, as opposed to cylinders (and spheres sorta). SO, will
-            just do an additional slice of the half torus if quarter is selected
+            I can't figure out good math on where to center / scale a quarter torus, in regards to the the effect of
+            slicing on lipid ratios. Ie, can't just match length of slice to tube radius, as >>WHERE<< you slice changes
+            total ratios, as opposed to cylinders (and spheres sorta). SO, will just do an additional slice of the half
+            torus if quarter is selected
             '''
 
             tube_circumference = 2 *  np.pi * r_tube
@@ -736,7 +737,7 @@ class shapes:
             top_leaflet.scale_coordinates_toroidal([outer_slice_min, outer_slice_max], [slice_min, slice_max])
             bot_leaflet.scale_coordinates_toroidal([inner_slice_min, inner_slice_max], [slice_min, slice_max])
 
-            top_leaflet.append_pdb(bot_leaflet)
+            top_leaflet.append(bot_leaflet)
             # top_leaflet.write_coordinates('torus_merge_notransform.pdb',position=False)
             # check quarter torus, use circular slice to cut off one side or other
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
@@ -768,7 +769,7 @@ class shapes:
             top_half = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, False)
             bot_half = copy(top_half)
             bot_half.rotate([180, 0, 0])
-            top_half.append_pdb(bot_half, preserve_leaflets=True)
+            top_half.append(bot_half, preserve_leaflets=True)
             return top_half
 
     class torus(shape):
@@ -789,7 +790,7 @@ class shapes:
             top_half = shapes.partial_torus.gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full')
             bot_half = copy(top_half)
             bot_half.rotate([180, 0, 0])
-            top_half.append_pdb(bot_half)
+            top_half.append(bot_half)
             return top_half
 
     class semicylinder_plane(shape):
@@ -817,10 +818,9 @@ class shapes:
             junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
             junction2 = copy(junction)
 
-            # rotations and translations. 135 and 225 degrees gets junctions
-            # rotated so that they max at 0 and taper to flat in the y direction
-            # translation because they face the wrong direction and may not match
-            # cylinder directions anyway
+            # rotations and translations. 135 and 225 degrees gets junctions rotated so that they max at 0 and taper to
+            # flat in the y direction translation because they face the wrong direction and may not match cylinder
+            # directions anyway
             junction.rotate([135, 0, 0])
             junction.translate([0, -(r_junction + r_cylinder), 0])
             junction2.rotate([225, 0, 0])
@@ -833,9 +833,9 @@ class shapes:
             flat_slice.center_on_zero()
             flat_slice.translate( [0, r_junction + r_cylinder + (l_flat / 2), - r_junction])
 
-            semicyl.append_pdb(junction)
-            semicyl.append_pdb(junction2)
-            semicyl.append_pdb(flat_slice)
+            semicyl.append(junction)
+            semicyl.append(junction2)
+            semicyl.append(flat_slice)
             return semicyl
 
     class mitochondrion(shape):
@@ -877,10 +877,10 @@ class shapes:
             cyl.metadata.leaflets = 1 - cyl.metadata.leaflets
             cyl.rotate([0, 90, 0])
 
-            cyl.append_pdb(junction)
-            cyl.append_pdb(flat_bilayer)
-            cyl.append_pdb(junction_2)
-            cyl.append_pdb(flat_bilayer_2)
+            cyl.append(junction)
+            cyl.append(flat_bilayer)
+            cyl.append(junction_2)
+            cyl.append(flat_bilayer_2)
             return cyl
 
     class elongated_vesicle(shape):
@@ -904,8 +904,8 @@ class shapes:
             semisphere2.rotate([0, 270, 0])
             semisphere1.coords[:, 0] = semisphere1.coords[:, 0] - l_cylinder / 2
             semisphere2.coords[:, 0] = semisphere2.coords[:, 0] + l_cylinder / 2
-            cyl.append_pdb(semisphere1)
-            cyl.append_pdb(semisphere2)
+            cyl.append(semisphere1)
+            cyl.append(semisphere2)
             return cyl
 
     class sphere_cylinder(shape):
@@ -941,10 +941,10 @@ class shapes:
             junc1.coords += [d_sphere + r_junction, 0, 0]
             junc2.coords -= [d_sphere + r_junction, 0, 0]
             cyl.coords += [(l_cylinder / 2) + d_sphere + r_junction , 0, 0 ]
-            cyl.append_pdb(sph1)
-            cyl.append_pdb(sph2)
-            cyl.append_pdb(junc1)
-            cyl.append_pdb(junc2)
+            cyl.append(sph1)
+            cyl.append(sph2)
+            cyl.append(junc1)
+            cyl.append(junc2)
             return cyl
 
     class semisphere_plane(shape):
@@ -958,9 +958,11 @@ def parse_command_lines():
                        'pivotal plane-based approach to appropriately match inter-leaflet area differences'
 
     geometry_description = 'Geometric arguments should be added as a series of argument:value pairs separated by a ' + \
-                           'colon .See the README for a list of required geometric arguments for a given shape.'
+                           'colon. Run this program with the --list flag for a list of supported shapes and their ' + \
+                           'respective geometric arguments.'
 
-    parser = ArgumentParser(prog=prog_name, description=prog_description, add_help=False, allow_abbrev=False)
+    parser = ArgumentParser(prog=prog_name, description=prog_description, add_help=False, allow_abbrev=False,
+                            usage='')
     # groups
     required_inputs     = parser.add_argument_group('required inputs')
     geometric_arguments = parser.add_argument_group('geometric arguments', geometry_description)
@@ -973,19 +975,21 @@ def parse_command_lines():
                                  help='Location of the pivotal plane (nm). Just one value, or outer_zo:inner_zo')
 
     # geometry
-    geometric_arguments.add_argument('-g', nargs='*', help='Format is arg:value, ie r_cylinder:10,' +
-                                     ' l_cylinder:20, ... for every geometric parameter in shape', metavar='')
+    geometric_arguments.add_argument('-g', nargs='*', help='Format is arg:value, ie r_cylinder:10 ' +
+                                     ' l_cylinder:20  ... for every geometric parameter in shape', metavar='')
 
     # optional arguments
     optional_arguments.add_argument('-h', '--help', action='help', help='show this help message and exit')
     optional_arguments.add_argument('-l', '--list', default=False, action='store_true',
                                     help='List current repository of shapes and their geometric arguments')
-    optional_arguments.add_argument('-outer', default='top', help='By default, top leaflet = outer leaflet. ' +
+    optional_arguments.add_argument('--outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
-    optional_arguments.add_argument('-apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
+    optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
-    optional_arguments.add_argument('-dummy', metavar='', type=float,
+    optional_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
                                     help='Create dummy array with thickness specified')
+    optional_arguments.add_argument('--dummy_grid_spacing', metavar='', type=float, default=5,
+                                    help='dummy grid spacing distance')
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
     output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
@@ -1073,12 +1077,12 @@ def main():
 
     if args.dummy:
         print('Creating dummy particles')
-        dummy_template = gen_dummy_grid(thickness=args.dummy)
+        dummy_template = gen_dummy_grid(thickness=args.dummy_grid_thickness, lateral_distance=args.dummy_grid_spacing)
         mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
                                 dummy_template.boxdims[0:2]).astype(int))
         dummy_template.duplicate_laterally(*mult_factor)
         dummy_shape = shape_tobuild.gen_shape(dummy_template, zo, **geometric_args)
-        shape.append_pdb(dummy_shape)
+        shape.append(dummy_shape)
 
     # file output
     print('Writing out PDB file ... ', end='', flush=True)

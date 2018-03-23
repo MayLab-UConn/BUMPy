@@ -838,23 +838,62 @@ class shapes:
             semicyl.append(flat_slice)
             return semicyl
 
-    class mitochondrion(shape):
+    class semisphere_plane(shape):
+
         @staticmethod
-        def dimension_requirements(r_cylinder, l_cylinder, r_junction, flat_dimension, buff=50):
+        def dimension_requirements(r_sphere, r_junction, l_flat, buff=50):
+            sphdims = shapes.semisphere.dimension_requirements(r_sphere)
+            flatdims = np.array([l_flat, l_flat])
+            jdims  =  shapes.partial_torus.dimension_requirements(r_sphere + r_junction, r_junction)
+            return np.array([max([sphdims[0], flatdims[0], jdims[0]]), max([sphdims[1], flatdims[1], jdims[1]])])
+
+        @staticmethod
+        def final_dimensions(r_sphere, r_junction, l_flat, buff=50):
+            return np.array([l_flat, l_flat, r_sphere + r_junction + 2 * buff])
+
+        @staticmethod
+        def gen_shape(template_bilayer, zo, r_sphere, r_junction, l_flat):
+            semisph   = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere)
+
+            template_2 = copy(template_bilayer)
+            template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
+            template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
+
+            junction  = shapes.partial_torus.gen_shape(template_2, zo,
+                                                       r_sphere + r_junction, r_junction, partial='inner')
+            junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
+
+            junction.rotate([180, 0, 0])
+
+            slice_origin = template_bilayer.gen_slicepoint()
+            flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
+                                                     [slice_origin[0], slice_origin[0] + l_flat],
+                                                     [slice_origin[1], slice_origin[1] + l_flat],
+                                                     r_sphere + r_junction))
+            flat_slice.center_on_zero()
+            flat_slice.translate([0, 0, -r_junction])
+
+            semisph.append(junction)
+            semisph.append(flat_slice)
+            return semisph
+
+    class double_bilayer_cylinder(shape):
+        @staticmethod
+        def dimension_requirements(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
             cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder)
-            flatdims = np.array([flat_dimension] * 2)
+            flatdims = np.array([l_flat] * 2)
             jdims  =  shapes.cylinder.dimension_requirements(r_junction, l_cylinder, completeness=0.5)
             return np.array([max([cyldims[0], flatdims[0], jdims[0]]), max([cyldims[1], flatdims[1], jdims[1]])])
 
         @staticmethod
-        def final_dimensions(r_cylinder, l_cylinder, r_junction, flat_dimension, buff=50):
-            return np.array([flat_dimension, flat_dimension, l_cylinder + 2 * (r_junction + buff)])
+        def final_dimensions(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
+            return np.array([l_flat, l_flat, l_cylinder + 2 * (r_junction + buff)])
 
-        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, flat_dimension):
+        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, l_flat):
             ''' "Top" leaflet will be IMS facing leaflet, so: TOP of flat region (no change), INSIDE of cylinder (flip),
                 and OUTSIDE of torus (no change)
             '''
-            if (r_cylinder + r_junction) > (flat_dimension / 2):
+            if (r_cylinder + r_junction) > (l_flat / 2):
                 raise UserWarning("Flat region too small for cylinder/junction radii")
 
             junction = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction,
@@ -862,8 +901,8 @@ class shapes:
             junction.translate([0, 0, l_cylinder / 2])
             junction_2 = copy(junction)
             junction_2.rotate( [180, 0, 0])
-            flat_bilayer = template_bilayer.slice_pdb(template_bilayer.rectangular_slice( [20, flat_dimension + 20],
-                                                                                          [20, flat_dimension + 20],
+            flat_bilayer = template_bilayer.slice_pdb(template_bilayer.rectangular_slice( [20, l_flat + 20],
+                                                                                          [20, l_flat + 20],
                                                                                           r_cylinder + r_junction))
             flat_bilayer.coords -= flat_bilayer.coords.mean(axis=0)
             flat_bilayer.translate([0, 0, (l_cylinder / 2) + r_junction])
@@ -883,7 +922,7 @@ class shapes:
             cyl.append(flat_bilayer_2)
             return cyl
 
-    class elongated_vesicle(shape):
+    class capped_cylinder(shape):
         @staticmethod
         def dimension_requirements(r_cylinder, l_cylinder, buff=50):
             cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder)
@@ -947,9 +986,6 @@ class shapes:
             cyl.append(junc2)
             return cyl
 
-    class semisphere_plane(shape):
-        pass
-
 
 def parse_command_lines():
     ''' Parses command line for parameters, returns parsed arguments '''
@@ -958,7 +994,7 @@ def parse_command_lines():
                        'pivotal plane-based approach to appropriately match inter-leaflet area differences'
 
     geometry_description = 'Geometric arguments should be added as a series of argument:value pairs separated by a ' + \
-                           'colon. Run this program with the --list flag for a list of supported shapes and their ' + \
+                           'colon. Run this program with the --list flag for a list of supported shapes and their '  + \
                            'respective geometric arguments.'
 
     parser = ArgumentParser(prog=prog_name, description=prog_description, add_help=False, allow_abbrev=False,
@@ -968,11 +1004,12 @@ def parse_command_lines():
     geometric_arguments = parser.add_argument_group('geometric arguments', geometry_description)
     optional_arguments  = parser.add_argument_group('optional arguments')
     output_arguments    = parser.add_argument_group('output arguments')
+
     # mandatory input
     required_inputs.add_argument('-s', help='Shape to make - see manual for a list of shapes', metavar='')
     required_inputs.add_argument('-f', help='Flat bilayer template to be used as a template',  metavar='')
-    required_inputs.add_argument('-z', metavar='',
-                                 help='Location of the pivotal plane (nm). Just one value, or outer_zo:inner_zo')
+    required_inputs.add_argument('-z', metavar='', help='Location of the pivotal plane (nm). Just one value, or' +
+                                                        'outer_zo:inner_zo')
 
     # geometry
     geometric_arguments.add_argument('-g', nargs='*', help='Format is arg:value, ie r_cylinder:10 ' +

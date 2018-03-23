@@ -1,0 +1,16 @@
+Lipid          zo (nm)         Temperature        Notes
+DLPC/DMPC
+DPPC
+POPC
+DOPC
+DBPC
+BGPC
+DGPC
+DLPE
+DPPE 
+POPE
+DOPE
+DBPE
+BGPE
+DGPE
+

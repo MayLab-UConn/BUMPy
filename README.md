@@ -1,8 +1,6 @@
 #			memcurv 
 
-This program is  used to generate coordinate files for use in molecular
-dynamics (MD) simulations of curved lipid bilayers, or just visualization
-
+This program is  used to generate coordinate files for use in molecular dynamics (MD) simulations of curved lipid bilayers
 Please read and cite 
 REFERENCE
 
@@ -10,25 +8,22 @@ REFERENCE
 No installation is necessary as long as you have a python (v3) interpreter
 
 ### DEPENDENCIES
-just numpy!
+Just numpy!
 
 ### USAGE
-memcurv is designed to be used at the command line, with something like the
-command "python memcurv [ options ]" 
+Memcurv is designed to be used at the command line, with something like the command "python memcurv [ options ]" 
 
 For a description of command line options, use the -h option at the command line
 For a list of supported curved shapes, use the --list option at the command line
 
 ### DEVELOPMENT
-memcurv is maintained on github (link: https://github.com/scal444/memcurv)
-I'll happily accept code contributions to improve the tool or add shapes to 
-the repository 
-
-
+* Memcurv is maintained on github (link: https://github.com/scal444/memcurv)
+* I'll happily accept code contributions to improve the tool or add shapes to the repository 
+* If there's a shape you want to simulate, I can likely make a template for it very quickly. Email me with a description of what you want built and I'll add it to the repository.
 ### Bugs
 To report bugs, email Kevin Boyd at kevin.boyd@uconn.edu
 
-### tips
+### Tips
 
 #### Input bilayer
 * Templates used as starting structures for memcurv need to contain WHOLE lipid molecules (ie - not broken across periodic boundaries)

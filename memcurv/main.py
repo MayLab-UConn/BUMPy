@@ -315,22 +315,8 @@ class Molecules:
         ''' The exclude method is broken right now. Doesn't actually slice bilayer, just returns indices to slice
         '''
         indices_to_keep = []
-        if cutoff_method == 'exclude':
-            all_inrange = []
-            inrange =  ((self.coords[:, 0] > xvals[0]) & (self.coords[:, 0] < xvals[1]) &
-                        (self.coords[:, 1] > yvals[0]) & (self.coords[:, 1] < yvals[1]) )
-            if exclude_radius > 0:
-                centered_coords = self.coords - [np.mean(xvals), np.mean(yvals), 0]
-                theta, rho, z = cart2pol(centered_coords)
-                rho_outside_exclusion = np.where(rho > exclude_radius)[0]
-                indices_to_keep = np.intersect1d(inrange, rho_outside_exclusion)
 
-            for i in np.where(self.metadata.ressize > 0)[0]:
-                natoms = self.metadata.ressize[i]
-                if np.all(inrange[i:i + natoms]):
-                    indices_to_keep += list(range(i, i + natoms))
-
-        elif cutoff_method == 'com':
+        if cutoff_method == 'com':
             res_starts = np.where(self.metadata.ressize > 0)[0]
             res_coms = self.calc_residue_COMS()
             all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) & (res_coms[:, 0] < xvals[1]) &
@@ -354,17 +340,7 @@ class Molecules:
         (theta, rho, z) = cart2pol(centered_coords)
         all_inrange = np.where((rho <= radius) & (rho >= exclude_radius))[0]
 
-        if cutoff_method == 'exclude':
-            for i in range(res_coms.size):
-                resvals = np.array(self.resid_list[i])
-                keep = True
-                for j in resvals:
-                    if j not in all_inrange:  # every index of residue must be in range
-                        keep = False
-                        break
-                if keep:
-                    indices_tokeep = np.append(indices_tokeep, np.array(resvals))
-        elif cutoff_method == 'com':
+        if cutoff_method == 'com':
             # print('Excluding based on residue COM cutoff')
             for i in all_inrange:
                 indices_tokeep.extend(list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
@@ -1107,7 +1083,7 @@ def main():
             if (not shape[0].startswith('_')) and  (shape[0] != 'shape'):
                 print('{:s}'.format(shape[0]))
                 sig = inspect.signature(shape[1].gen_shape)
-                for param in sig.parameters.values():    # 2: discards template and zo
+                for param in sig.parameters.values():
                     if param.default == param.empty and param.name != 'zo' and param.name != 'template_bilayer':
                         print('    {:s}'.format(param.name))
         exit()
@@ -1169,7 +1145,7 @@ def main():
         if args.dummy_grid_thickness:
             shape.write_index(args.n, dummy_name='DUMY')
         else:
-            shape.write_indx(args.n)
+            shape.write_index(args.n)
     print('Finished writing PDB file with {} atoms - time elapsed = {:.1f} seconds'.format(
           shape.coords.shape[0], time() - t))
 

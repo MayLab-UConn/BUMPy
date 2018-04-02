@@ -850,11 +850,7 @@ class shapes:
             junction2.rotate([225, 0, 0])
             junction2.translate([0, r_junction + r_cylinder, 0])
 
-            slice_origin = template_bilayer.gen_slicepoint()
-            flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
-                                                     [slice_origin[0], slice_origin[0] + l_cylinder],
-                                                     [slice_origin[1], slice_origin[1] + l_flat]))
-            flat_slice.center_on_zero()
+            flat_slice = shapes.flat_bilayer.gen_shape(template_bilayer, zo, l_cylinder, l_flat)
             flat_slice.translate( [0, r_junction + r_cylinder + (l_flat / 2), - r_junction])
 
             semicyl.append(junction)
@@ -889,12 +885,7 @@ class shapes:
 
             junction.rotate([180, 0, 0])
 
-            slice_origin = template_bilayer.gen_slicepoint()
-            flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
-                                                     [slice_origin[0], slice_origin[0] + l_flat],
-                                                     [slice_origin[1], slice_origin[1] + l_flat],
-                                                     r_sphere + r_junction))
-            flat_slice.center_on_zero()
+            flat_slice = shapes.flat_bilayer.gen_shape(template_bilayer, zo, l_flat, l_flat, r_sphere + r_junction)
             flat_slice.translate([0, 0, -r_junction])
 
             semisph.append(junction)
@@ -925,10 +916,8 @@ class shapes:
             junction.translate([0, 0, l_cylinder / 2])
             junction_2 = copy(junction)
             junction_2.rotate( [180, 0, 0])
-            flat_bilayer = template_bilayer.slice_pdb(template_bilayer.rectangular_slice( [20, l_flat + 20],
-                                                                                          [20, l_flat + 20],
-                                                                                          r_cylinder + r_junction))
-            flat_bilayer.coords -= flat_bilayer.coords.mean(axis=0)
+            flat_bilayer = shapes.flat_bilayer.gen_shape(template_bilayer, zo, l_flat, l_flat, r_cylinder + r_junction)
+
             flat_bilayer.translate([0, 0, (l_cylinder / 2) + r_junction])
             flat_bilayer_2 = copy(flat_bilayer)
             flat_bilayer_2.rotate([180, 0, 0])

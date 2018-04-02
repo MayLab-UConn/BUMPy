@@ -609,6 +609,30 @@ class shapes:
         def final_dimensions(**geometric_args):
             raise NotImplementedError
 
+    class flat_bilayer(shape):
+        ''' Three uses for a flat bilayer class. First, to make things simpler when building different shapes that
+            encompass a flat bilayer. Second, if one wants to make a flat system of a certain size with a dummy grid.
+            A third use would simply be expanding an existing bilayer to specified dimensions. One can do something like
+            that with gmx editconf, but only in multiples of the original box size
+        '''
+        @staticmethod
+        def dimension_requirements(x_dimension, y_dimension, buff=50):
+            return np.array([x_dimension + buff  , y_dimension + buff])
+
+        @staticmethod
+        def final_dimensions(x_dimension, y_dimension, buff=50):
+            return np.array([x_dimension, y_dimension, 2 * buff])
+
+        @ staticmethod
+        def gen_shape(template_bilayer, zo, x_dimension, y_dimension, r_hole=0, cutoff_method='com'):
+            slice_origin = template_bilayer.gen_slicepoint()
+            flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
+                                                     [slice_origin[0], slice_origin[0] + x_dimension],
+                                                     [slice_origin[1], slice_origin[1] + y_dimension],
+                                                     r_hole))
+            flat_slice.center_on_zero()
+            return flat_slice
+
     class semisphere(shape):
         @staticmethod
         def dimension_requirements(r_sphere, buff=50):

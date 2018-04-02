@@ -542,15 +542,21 @@ class Molecules:
                     prev_res = res
             fout.write("{:4s} {:d}\n".format(prev_res, counter))
 
-    def write_index(self, outfile, special_groups=None):
-        '''Writes out index file (.ndx) with the following (hopefully useful)
-           fields:
+    def write_index(self, outfile, dummy_name=None):
+        ''' Writes out index file (.ndx) with the following (hopefully useful) fields:
                     -system
                     -top_leaflet
                     -top_leaflet_component_1
                     -top_leaflet_component_2...
                     -bot_leaflet
                     -bot_leaflet_componenet_1...
+            If dummy particles are present, will NOT include in "top_leaflet" or "bot_leaflet", but will add the
+            following sections
+                    -not_dummy
+                    -dummy
+                    -top_dummy
+                    -bot_dummy
+
         '''
         def write_index_unit(print_obj, name, indices):
             print_obj.write("[ {:s} ]\n".format(name))
@@ -564,11 +570,30 @@ class Molecules:
             print_obj.write("\n\n")
 
         with open(outfile, 'w') as fout:
-            top_atomno = np.where(self.metadata.leaflets == 1)[0] + 1
-            bot_atomno = np.where(self.metadata.leaflets == 0)[0] + 1
+            top_atomno = np.where((self.metadata.leaflets == 1) & (self.metadata.resname != dummy_name))[0] + 1
+            bot_atomno = np.where((self.metadata.leaflets == 0) & (self.metadata.resname != dummy_name))[0] + 1
             write_index_unit(fout, "system", np.arange(1, self.coords.shape[0] + 1))
             write_index_unit(fout, "top_leaflet", top_atomno)
             write_index_unit(fout, "bot_leaflet", bot_atomno)
+
+            # individual lipids by leaflet
+            for rname in np.unique(self.metadata.resname):
+                if rname != dummy_name:
+                    top = np.where((self.metadata.leaflets == 1) & (self.metadata.resname == rname))[0] + 1
+                    bot = np.where((self.metadata.leaflets == 0) & (self.metadata.resname == rname))[0] + 1
+                    if top.size > 0:
+                        write_index_unit(fout, "top_" + rname, top)
+                    if bot.size > 0:
+                        write_index_unit(fout, "bot_" + rname, bot)
+
+            # dummy info
+            if dummy_name:
+                write_index_unit(fout, "not_" + dummy_name, np.where(self.metadata.resname != dummy_name)[0] + 1)
+                write_index_unit(fout, dummy_name,          np.where(self.metadata.resname == dummy_name)[0] + 1)
+                top = np.where((self.metadata.resname == dummy_name) & (self.metadata.leaflets == 1))[0]
+                bot = np.where((self.metadata.resname == dummy_name) & (self.metadata.leaflets == 0))[0]
+                write_index_unit(fout, "top_" + dummy_name, top)
+                write_index_unit(fout, "bot_" + dummy_name, bot)
 
 
 # ------------------------------------------------------------------------------
@@ -1141,7 +1166,10 @@ def main():
     if args.p:
         shape.write_topology(args.p)
     if args.n:
-        shape.write_index(args.n)
+        if args.dummy_grid_thickness:
+            shape.write_index(args.n, dummy_name='DUMY')
+        else:
+            shape.write_indx(args.n)
     print('Finished writing PDB file with {} atoms - time elapsed = {:.1f} seconds'.format(
           shape.coords.shape[0], time() - t))
 

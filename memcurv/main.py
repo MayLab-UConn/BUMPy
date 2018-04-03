@@ -566,8 +566,8 @@ class Molecules:
             if dummy_name:
                 write_index_unit(fout, "not_" + dummy_name, np.where(self.metadata.resname != dummy_name)[0] + 1)
                 write_index_unit(fout, dummy_name,          np.where(self.metadata.resname == dummy_name)[0] + 1)
-                top = np.where((self.metadata.resname == dummy_name) & (self.metadata.leaflets == 1))[0]
-                bot = np.where((self.metadata.resname == dummy_name) & (self.metadata.leaflets == 0))[0]
+                top = np.where((self.metadata.resname == dummy_name) & (self.metadata.leaflets == 1))[0] + 1
+                bot = np.where((self.metadata.resname == dummy_name) & (self.metadata.leaflets == 0))[0] + 1
                 write_index_unit(fout, "top_" + dummy_name, top)
                 write_index_unit(fout, "bot_" + dummy_name, bot)
 
@@ -1041,10 +1041,12 @@ def parse_command_lines():
                                     help='Create dummy array with thickness specified')
     optional_arguments.add_argument('--dummy_grid_spacing', metavar='', type=float, default=5,
                                     help='dummy grid spacing distance')
+
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
     output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
     output_arguments.add_argument('-n', help='Simple .ndx index file, separating leaflets', metavar='')  # optional
+
 
     return parser.parse_args()
 

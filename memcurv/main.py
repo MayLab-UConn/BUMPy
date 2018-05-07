@@ -1035,6 +1035,7 @@ def parse_command_lines():
     required_inputs     = parser.add_argument_group('required inputs')
     geometric_arguments = parser.add_argument_group('geometric arguments', geometry_description)
     optional_arguments  = parser.add_argument_group('optional arguments')
+    dummy_arguments     = parser.add_argument_group('dummy particle options')
     output_arguments    = parser.add_argument_group('output arguments')
 
     # mandatory input
@@ -1055,10 +1056,13 @@ def parse_command_lines():
                                     'Set to "bot" to invert', metavar='')
     optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
-    optional_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
-                                    help='Create dummy array with thickness specified')
-    optional_arguments.add_argument('--dummy_grid_spacing', metavar='', type=float, default=5,
-                                    help='dummy grid spacing distance')
+
+    dummy_arguments.add_argument('--dummy_name', metavar='', type=str, default='DUMY',
+                                 help='Dummy particle atomname/resname. Defaults to DUMY')
+    dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
+                                 help='Create dummy array with thickness specified')
+    dummy_arguments.add_argument('--dummy_grid_spacing', metavar='', type=float, default=5,
+                                 help='dummy grid spacing distance')
 
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
@@ -1147,7 +1151,9 @@ def main():
 
     if args.dummy_grid_thickness:
         print('Creating dummy particles')
-        dummy_template = gen_dummy_grid(thickness=args.dummy_grid_thickness, lateral_distance=args.dummy_grid_spacing)
+        dummy_name = args.dummy_name[0:4]   # shorten to first 4 letters
+        dummy_template = gen_dummy_grid(thickness=args.dummy_grid_thickness, lateral_distance=args.dummy_grid_spacing,
+                                        atomname=dummy_name, resname=dummy_name)
         mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
                                 dummy_template.boxdims[0:2]).astype(int))
         dummy_template.duplicate_laterally(*mult_factor)
@@ -1162,7 +1168,7 @@ def main():
         shape.write_topology(args.p)
     if args.n:
         if args.dummy_grid_thickness:
-            shape.write_index(args.n, dummy_name='DUMY')
+            shape.write_index(args.n, dummy_name=dummy_name)
         else:
             shape.write_index(args.n)
     print('Finished writing PDB file with {} atoms - time elapsed = {:.1f} seconds'.format(

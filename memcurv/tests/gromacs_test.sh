@@ -3,6 +3,7 @@
 # generate a system and try to grompp it with topology and index 
 folder="gromacs_test_files"
 
+rm $folder/*.tpr $folder/*.gro
 
 python3 ../main.py -f asymm.pdb -s sphere -z 10.5 -o $folder/start.pdb -p $folder/start.top -n $folder/start.ndx -g r_sphere:100
 

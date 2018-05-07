@@ -2,8 +2,8 @@ memcurv/debugging/**
 memcurv/*.pdb
 memcurv/*.gro
 __pycache__
+memcurv/tests/**/test*
 
-test*
 *.tpr
 *.trr
 *.log

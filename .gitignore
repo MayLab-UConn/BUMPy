@@ -1,8 +1,6 @@
 *.pdb
-*.gro
 *.tpr
 *.trr
 *.log
 *.edr
 *.cpt
-*.mdp

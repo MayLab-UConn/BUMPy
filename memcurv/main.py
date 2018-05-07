@@ -518,7 +518,7 @@ class Molecules:
                     prev_res = res
             fout.write("{:4s} {:d}\n".format(prev_res, counter))
 
-    def write_index(self, outfile, dummy_name=None):
+    def write_index(self, outfile, dummy_name=''):
         ''' Writes out index file (.ndx) with the following (hopefully useful) fields:
                     -system
                     -top_leaflet

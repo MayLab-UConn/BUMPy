@@ -15,12 +15,14 @@ gmx grompp -f $folder/step6.0_equilibration.mdp -p $folder/start.top -n $folder/
 gmx mdrun -deffnm $folder/test_minimization -nsteps 40 -v
 gmx grompp -f $folder/step7_production.mdp -p $folder/start.top -n $folder/start.ndx -c $folder/test_minimization.gro -o $folder/grompp_production.tpr
 
+
+
 if [ $? -eq 0 ]; then
 	echo 'Success'
 else
 	echo 'Failure :('
 fi
 
-rm $folder/#*#
+rm $folder/#*# mdout.mdp ./#*#
 
 exit 

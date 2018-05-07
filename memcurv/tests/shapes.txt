@@ -1,3 +1,4 @@
+semisphere                r_sphere:100
 sphere                    r_sphere:100
 cylinder                  r_cylinder:100 l_cylinder:300
 torus                     r_torus:300 r_tube:100

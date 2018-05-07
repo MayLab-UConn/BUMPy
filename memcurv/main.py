@@ -332,7 +332,7 @@ class Molecules:
         return np.asarray(indices_to_keep)
 
     def circular_slice(self, center, radius, exclude_radius=0, cutoff_method='com'):
-        ''' Exclude is broken right now. Doesn't actually slice bilayer, just returns indices to slice'''
+        ''' Doesn't actually slice bilayer, just returns indices to slice'''
         indices_tokeep = []
         res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
@@ -644,7 +644,7 @@ class shapes:
             return np.array([2 * (r_sphere + buff), 2 * (r_sphere + buff), r_sphere + (2 * buff)])
 
         @ staticmethod
-        def gen_shape(template_bilayer, zo, r_sphere, r_hole=0, cutoff_method='com'):
+        def gen_shape(template_bilayer, zo, r_sphere, r_hole=0, cutoff_method='com', print_intermediates=False):
             ''' returns molecules instance of semisphere'''
             # calculating slice radii
             slice_radius = np.pi * r_sphere / 2
@@ -666,6 +666,10 @@ class shapes:
             bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
             # merge and transform slices
             top_leaflet.append(bot_leaflet)
+
+            if print_intermediates:
+                top_leaflet.write_coordinates(print_intermediates)
+
             top_leaflet.spherical_transform(r_sphere)
             return top_leaflet
 
@@ -679,7 +683,8 @@ class shapes:
         def final_dimensions(r_cylinder, l_cylinder, buff=50):
             return np.array([l_cylinder, 2 * (r_cylinder + buff), 2 * (r_cylinder + buff)])
 
-        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1, cutoff_method='com'):
+        def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1,
+                      cutoff_method='com', print_intermediates=False):
             '''Makes a cylinder with given parameters.
 
             Completeness=0.5 for semicylinder,
@@ -705,6 +710,9 @@ class shapes:
             top_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / outer_slice_length])
             bot_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / inner_slice_length])
             top_leaflet.append(bot_leaflet)
+            if print_intermediates:
+                top_leaflet.write_coordinates(print_intermediates)
+
             top_leaflet.cylindrical_transform(r_cylinder)
             return top_leaflet
 
@@ -718,7 +726,8 @@ class shapes:
             return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
 
         @staticmethod
-        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full', cutoff_method='com'):
+        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full',
+                      cutoff_method='com', print_intermediates=False):
             '''Makes a partial torus with given parameters
 
             The flat circular slice of a half_torus with torus R ranges from(R-r') to (R+r'),
@@ -768,7 +777,12 @@ class shapes:
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
-            top_leaflet.toroidal_transform(r_torus, r_tube)
+
+            # if print_intermediates:
+            #    if partial == 'inner':
+            #        # temp = top_leaflet.slice_pdb()
+            #        top_leaflet.write_coordinates(print_intermediates)
+
             # top_leaflet.write_coordinates('torus_transform.pdb',position=False)
             if partial == 'inner':
                 top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(
@@ -776,6 +790,10 @@ class shapes:
             elif partial == 'outer':
                 top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords, axis=0),
                                                     r_torus + tube_circumference, exclude_radius=r_torus))
+
+            if print_intermediates:
+                top_leaflet.write_coordinates(print_intermediates)
+            top_leaflet.toroidal_transform(r_torus, r_tube)
 
             return top_leaflet
 
@@ -1046,7 +1064,6 @@ def parse_command_lines():
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
     output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
     output_arguments.add_argument('-n', help='Simple .ndx index file, separating leaflets', metavar='')  # optional
-
 
     return parser.parse_args()
 

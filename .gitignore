@@ -1,7 +1,11 @@
-*.pdb
+memcurv/debugging/**
+memcurv/*.pdb
+memcurv/*.gro
+__pycache__
+
+test*
 *.tpr
 *.trr
 *.log
 *.edr
 *.cpt
-*test*.gro

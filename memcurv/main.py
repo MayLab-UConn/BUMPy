@@ -87,12 +87,12 @@ class Molecules:
         attribute, list of xyz box dimensions.
     '''
 
-    def __init__(self, infile=None, metadata=[], coords=[], boxdims=[]):
+    def __init__(self, infile=None, metadata=[], coords=[], boxdims=[], ignore=[]):
         '''Can initialize from file, or with manual inputs (like when slicing).
            Can also initialize with all objects blank, and wait for input
         '''
         if infile is not None:
-            self.read_input(infile)
+            self.read_input(infile, ignore=ignore)
         else:
             self.coords   = coords
             self.metadata = metadata
@@ -349,7 +349,7 @@ class Molecules:
     # -------------------------------------------------------------------------
     # file i/o
     # -------------------------------------------------------------------------
-    def read_input(self, filein, fmt='pdb', reorganize=False):
+    def read_input(self, filein, fmt='pdb', reorganize=False, ignore=[]):
         '''Read input pdb
         '''
         with open(filein, "r") as fid:
@@ -359,20 +359,25 @@ class Molecules:
                 stringin = fid.readlines()
                 stringin.pop(0)      # remove first line
 
-                temp = stringin.pop()
+                if ignore:
+                    string_processed = [line for line in stringin if not line[11:15].strip() in ignore]
+                else:
+                    string_processed = stringin
+
+                temp = string_processed.pop()
                 while temp.isspace():
-                    temp = stringin.pop()    # take care of any trailing whitespace
+                    temp = string_processed.pop()    # take care of any trailing whitespace
                 self.boxdims = [10 * float(i) for i in temp.split()[0:3]]   # final line is box coordinates
 
-                n_atoms = int(stringin.pop(0).strip())
-                self.coords = np.empty((len(stringin), 3))
+                n_atoms = int(string_processed.pop(0).strip())
+                self.coords = np.empty((len(string_processed), 3))
 
                 atomname = np.empty(n_atoms, dtype="<U4")
                 resname  = np.empty(n_atoms, dtype="<U4")
                 curr_res , prev_res, ressize  = [], [], []                   # residue indexing
 
                 atomcount = 0
-                for i, line in enumerate(stringin):
+                for i, line in enumerate(string_processed):
                     atomname[i] = line[11:15]
                     resname[i] =  line[5:9]
                     self.coords[i, :] = [10 * float(j) for j in line[20:43].split()]
@@ -399,7 +404,7 @@ class Molecules:
                 curr_res , prev_res, ressize  = [], [], []                   # residue indexing
                 atomcount = 0                                                # counters
                 for pdb_line in fid:
-                    if pdb_line.startswith("ATOM"):
+                    if pdb_line.startswith("ATOM") and not pdb_line[17:21].strip() in ignore:
                         # strings
                         atomname.append(pdb_line[12:16])
                         resname.append( pdb_line[17:21])
@@ -1052,6 +1057,8 @@ def parse_command_lines():
                                     'Set to "bot" to invert', metavar='')
     optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
+    optional_arguments.add_argument('--ignore_resnames', help='colon separated list of resnames to ignore when ' +
+                                    'reading in a structure file, for example to exclude water', default=[])
 
     dummy_arguments.add_argument('--gen_dummy_particles', action='store_true',
                                  help='Add a grid of dummy particles surrounding bilayer' )
@@ -1121,7 +1128,7 @@ def main():
     # read in pdb
     print('Reading in PDB file  ... ', end='', flush=True)
     t = time()
-    template_bilayer = Molecules(infile=args.f)
+    template_bilayer = Molecules(infile=args.f, ignore=args.ignore_resnames)
     print('Finished reading PDB with {:d} atoms - time elapsed = {:.1f} seconds'.format(
           template_bilayer.coords.shape[0], time() - t))
 

@@ -28,6 +28,10 @@ python3 $executable --gen_dummy_particles -f $input -z $zo -o $outfolder/test_du
 python3 $executable --gen_dummy_particles -f $input -z $zo -o $outfolder/test_dummy_grid.pdb   -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100  --dummy_grid_spacing 3 --dummy_grid_thickness 50
 
 
-
-
+# ------------------------------------------------------------------------------------
+# test residue exclusion command line options
+# ------------------------------------------------------------------------------------
+outfolder="exclusion_test_files"
+python3 $executable -f $outfolder/asymm_solvated.pdb -z $zo -o $outfolder/test_exclusion_1excl.pdb -n $outfolder/test_exclusion_1excl.ndx -p $outfolder/test_exclusion_1excl.top  --ignore_resnames W        -s sphere -g r_sphere:50
+python3 $executable -f $outfolder/asymm_solv_ion.pdb -z $zo -o $outfolder/test_exclusion_2excl.pdb -n $outfolder/test_exclusion_2excl.ndx -p $outfolder/test_exclusion_2excl.top  --ignore_resnames W:SOD    -s sphere -g r_sphere:50
 exit

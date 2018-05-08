@@ -7,3 +7,4 @@ semisphere_plane          r_sphere:100  r_junction:50 l_flat:300
 double_bilayer_cylinder   r_cylinder:200 l_cylinder:300 r_junction:100 l_flat:650
 capped_cylinder           r_cylinder:100 l_cylinder:400
 sphere_cylinder           r_sphere:200 r_cylinder:100 l_cylinder:300 r_junction:50
+flat_bilayer              x_dimension:100 y_dimension:200

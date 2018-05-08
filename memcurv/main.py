@@ -472,7 +472,7 @@ class Molecules:
                 if header:
                     fout.write('Generated using command: {:s}\n'.format(header))
                 else:
-                    fout.write('created using Jason\n')
+                    fout.write('created using BUMPY\n')
                 fout.write(' {:d}\n'.format(nparts))
                 resid = np.mod(resid, 100000)    # 99,999 max for gro
                 atomno = np.mod(np.arange(1, nparts + 1), 100000)
@@ -1021,7 +1021,7 @@ class shapes:
 
 def parse_command_lines():
     ''' Parses command line for parameters, returns parsed arguments '''
-    prog_name =  'JASON'
+    prog_name =  'BUMPY'
     prog_description = 'Creating curved membrane systems with arbitrary geometry and lipid composition, using a ' + \
                        'pivotal plane-based approach to appropriately match inter-leaflet area differences'
 

@@ -5,7 +5,7 @@ folder="gromacs_test_files"
 
 rm $folder/*.tpr $folder/*.gro $folder/test*
 
-python3 ../main.py -f asymm.pdb -s sphere -z 10.5 -o $folder/test_start.pdb -p $folder/test_start.top -n $folder/test_start.ndx -g r_sphere:100
+python3 ../../main.py -f asymm.pdb -s sphere -z 10.5 -o $folder/test_start.pdb -p $folder/test_start.top -n $folder/test_start.ndx -g r_sphere:100
 
 echo '#include "toppar/martini_v2.0_ions.itp"'              | cat - $folder/test_start.top > temp && mv temp $folder/test_start.top
 echo '#include "toppar/martini_v2.0_lipids_all_201506.itp"' | cat - $folder/test_start.top > temp && mv temp $folder/test_start.top

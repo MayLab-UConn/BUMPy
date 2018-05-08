@@ -7,7 +7,7 @@ import inspect
 import sys
 from argparse import ArgumentParser
 from time import time
-from copy import copy
+from copy import deepcopy
 
 
 __version__ = '0.5'
@@ -262,6 +262,13 @@ class Molecules:
         self.coords = self.coords[new_order, :]
         self.metadata.reorder(new_order)
 
+    def reorder_with_dummies_in_back(self, dummy_name):
+        not_dummy_indices = np.where(self.metadata.resname != dummy_name)[0]
+        dummy_indices     = np.where(self.metadata.resname == dummy_name)[0]
+        new_order = np.append(not_dummy_indices, dummy_indices)
+        self.coords = self.coords[new_order, :]
+        self.metadata.reorder(new_order)
+
     # -------------------------------------------------------------------------
     # adding and slicing pdb classes
     # -------------------------------------------------------------------------
@@ -439,11 +446,13 @@ class Molecules:
         # assigning resid lengths and leaflets
         self.assign_leaflets()
 
-    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None):
+    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None, dummy_name=None):
 
         if reorder:
             self.reorder_by_leaflet()
             self.reorder_within_leaflet()
+            if dummy_name:
+                self.reorder_with_dummies_in_back(dummy_name)
 
         # default is to bring everything to positive regime, allows for up to
         # 9999 angstroms in PDB file format
@@ -811,7 +820,7 @@ class shapes:
         @staticmethod
         def gen_shape(template_bilayer, zo, r_sphere, n_holes=0):
             top_half = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, False)
-            bot_half = copy(top_half)
+            bot_half = deepcopy(top_half)
             bot_half.rotate([180, 0, 0])
             top_half.append(bot_half, preserve_leaflets=True)
             return top_half
@@ -832,7 +841,7 @@ class shapes:
                 raise UserWarning("r_torus should be less than r_tube for a ring torus")
 
             top_half = shapes.partial_torus.gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full')
-            bot_half = copy(top_half)
+            bot_half = deepcopy(top_half)
             bot_half.rotate([180, 0, 0])
             top_half.append(bot_half)
             return top_half
@@ -854,13 +863,13 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, l_flat):
             semicyl   = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=0.5)
 
-            template_2 = copy(template_bilayer)
+            template_2 = deepcopy(template_bilayer)
             template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
             template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
 
             junction  = shapes.cylinder.gen_shape(template_2, zo, r_junction, l_cylinder, completeness=0.25)
             junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
-            junction2 = copy(junction)
+            junction2 = deepcopy(junction)
 
             # rotations and translations. 135 and 225 degrees gets junctions rotated so that they max at 0 and taper to
             # flat in the y direction translation because they face the wrong direction and may not match cylinder
@@ -895,7 +904,7 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_sphere, r_junction, l_flat):
             semisph   = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere)
 
-            template_2 = copy(template_bilayer)
+            template_2 = deepcopy(template_bilayer)
             template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
             template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
 
@@ -934,15 +943,15 @@ class shapes:
             junction = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction,
                                                       partial='inner')
             junction.translate([0, 0, l_cylinder / 2])
-            junction_2 = copy(junction)
+            junction_2 = deepcopy(junction)
             junction_2.rotate( [180, 0, 0])
             flat_bilayer = shapes.flat_bilayer.gen_shape(template_bilayer, zo, l_flat, l_flat, r_cylinder + r_junction)
 
             flat_bilayer.translate([0, 0, (l_cylinder / 2) + r_junction])
-            flat_bilayer_2 = copy(flat_bilayer)
+            flat_bilayer_2 = deepcopy(flat_bilayer)
             flat_bilayer_2.rotate([180, 0, 0])
 
-            template_2 = copy(template_bilayer)
+            template_2 = deepcopy(template_bilayer)
             template_2.rotate([180, 0, 0])    # flip
             template_2.metadata.leaflets = 1 - template_2.metadata.leaflets
             cyl = shapes.cylinder.gen_shape(template_2, zo, r_cylinder, l_cylinder, completeness=1)
@@ -971,7 +980,7 @@ class shapes:
             ''' Two semispheres connected by a cylinder'''
             cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
             semisphere1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_cylinder)
-            semisphere2 = copy(semisphere1)
+            semisphere2 = deepcopy(semisphere1)
             semisphere1.rotate([0, 90, 0])
             semisphere2.rotate([0, 270, 0])
             semisphere1.coords[:, 0] = semisphere1.coords[:, 0] - l_cylinder / 2
@@ -998,12 +1007,12 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_sphere, r_cylinder, l_cylinder, r_junction):
             cyl = shapes.cylinder.gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, completeness=1)
             sph1 = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, r_hole=r_cylinder + r_junction)
-            sph2 = copy(sph1)
+            sph2 = deepcopy(sph1)
             sph1.rotate([0,  90, 0])
             sph2.rotate([0, 270, 0])
             junc1 = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction,
                                                    r_junction, partial='inner')
-            junc2 = copy(junc1)
+            junc2 = deepcopy(junc1)
             junc1.rotate([0,  90, 0])
             junc2.rotate([0, 270, 0])
 
@@ -1164,18 +1173,18 @@ def main():
         dummy_template.duplicate_laterally(*mult_factor)
         dummy_shape = shape_tobuild.gen_shape(dummy_template, zo, **geometric_args)
         shape.append(dummy_shape)
+    else:
+        dummy_name = ''
 
     # file output
     print('Writing out PDB file ... ', end='', flush=True)
     t = time()
-    shape.write_coordinates(args.o, header=cli)
+    shape.write_coordinates(args.o, header=cli, dummy_name=dummy_name)
     if args.p:
         shape.write_topology(args.p)
     if args.n:
-        if args.gen_dummy_particles:
-            shape.write_index(args.n, dummy_name=dummy_name)
-        else:
-            shape.write_index(args.n)
+        shape.write_index(args.n, dummy_name=dummy_name)
+
     print('Finished writing PDB file with {} atoms - time elapsed = {:.1f} seconds'.format(
           shape.coords.shape[0], time() - t))
 

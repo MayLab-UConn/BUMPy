@@ -329,7 +329,7 @@ class Molecules:
             all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) & (res_coms[:, 0] < xvals[1]) &
                                                (res_coms[:, 1] > yvals[0]) & (res_coms[:, 1] < yvals[1]) ))[0]
             if exclude_radius > 0:
-                centered_coords = res_coms - [np.mean(xvals), np.mean(yvals), 0]
+                centered_coords = res_coms - res_coms[all_inrange].mean(axis=0)
                 theta, rho, z = cart2pol(centered_coords)
                 rho_outside_exclusion = np.where(rho > exclude_radius)[0]
                 all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
@@ -637,13 +637,17 @@ class shapes:
             return np.array([x_dimension, y_dimension, 2 * buff])
 
         @ staticmethod
-        def gen_shape(template_bilayer, zo, x_dimension, y_dimension, r_hole=0, cutoff_method='com'):
+        def gen_shape(template_bilayer, zo, x_dimension, y_dimension, r_hole=0, cutoff_method='com',
+                      print_intermediates=False):
             slice_origin = template_bilayer.gen_slicepoint()
             flat_slice  = template_bilayer.slice_pdb(template_bilayer.rectangular_slice(
                                                      [slice_origin[0], slice_origin[0] + x_dimension],
                                                      [slice_origin[1], slice_origin[1] + y_dimension],
                                                      r_hole))
             flat_slice.center_on_zero()
+
+            if print_intermediates:
+                flat_slice.write_coordinates(print_intermediates, position=False)
             return flat_slice
 
     class semisphere(shape):
@@ -680,7 +684,7 @@ class shapes:
             top_leaflet.append(bot_leaflet)
 
             if print_intermediates:
-                top_leaflet.write_coordinates(print_intermediates)
+                top_leaflet.write_coordinates(print_intermediates, position=None)
 
             top_leaflet.spherical_transform(r_sphere)
             return top_leaflet
@@ -723,7 +727,7 @@ class shapes:
             bot_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / inner_slice_length])
             top_leaflet.append(bot_leaflet)
             if print_intermediates:
-                top_leaflet.write_coordinates(print_intermediates)
+                top_leaflet.write_coordinates(print_intermediates, position=None)
 
             top_leaflet.cylindrical_transform(r_cylinder)
             return top_leaflet
@@ -804,7 +808,7 @@ class shapes:
                                                     r_torus + tube_circumference, exclude_radius=r_torus))
 
             if print_intermediates:
-                top_leaflet.write_coordinates(print_intermediates)
+                top_leaflet.write_coordinates(print_intermediates, position=None)
             top_leaflet.toroidal_transform(r_torus, r_tube)
 
             return top_leaflet
@@ -959,6 +963,12 @@ class shapes:
             cyl = shapes.cylinder.gen_shape(template_2, zo, r_cylinder, l_cylinder, completeness=1)
             cyl.metadata.leaflets = 1 - cyl.metadata.leaflets
             cyl.rotate([0, 90, 0])
+
+            flat_bilayer.write_coordinates(  '/home/kevin/git_repos/memcurv/memcurv/debugging/flat.pdb',  position=None)
+            flat_bilayer_2.write_coordinates('/home/kevin/git_repos/memcurv/memcurv/debugging/flat2.pdb', position=None)
+            cyl.write_coordinates(           '/home/kevin/git_repos/memcurv/memcurv/debugging/cyl.pdb',   position=None)
+            junction.write_coordinates(      '/home/kevin/git_repos/memcurv/memcurv/debugging/junc.pdb',  position=None)
+            junction_2.write_coordinates(    '/home/kevin/git_repos/memcurv/memcurv/debugging/junc2.pdb', position=None)
 
             cyl.append(junction)
             cyl.append(flat_bilayer)

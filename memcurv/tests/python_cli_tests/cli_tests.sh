@@ -23,9 +23,9 @@ done < shapes.txt
 # runs tests on dummy parameter inputs
 # ------------------------------------------------------------------------------------
 outfolder="dummy_test_files"
-python3 $executable -f $input -z $zo -o $outfolder/test_basic_dummy.pdb  -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100 -p $outfolder/test_basic_dummy.top -n $outfolder/test_basic_dummy.ndx --dummy_grid_thickness 50
-python3 $executable -f $input -z $zo -o $outfolder/test_dummy_name.pdb   -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100 -p $outfolder/test_dummy_name.top  -n $outfolder/test_dummy_name.ndx  --dummy_name TEST --dummy_grid_thickness 50
-python3 $executable -f $input -z $zo -o $outfolder/test_dummy_grid.pdb   -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100  --dummy_grid_spacing 3 --dummy_grid_thickness 50
+python3 $executable --gen_dummy_particles -f $input -z $zo -o $outfolder/test_basic_dummy.pdb  -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100 -p $outfolder/test_basic_dummy.top -n $outfolder/test_basic_dummy.ndx --dummy_grid_thickness 50
+python3 $executable --gen_dummy_particles -f $input -z $zo -o $outfolder/test_dummy_name.pdb   -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100 -p $outfolder/test_dummy_name.top  -n $outfolder/test_dummy_name.ndx  --dummy_name TEST --dummy_grid_thickness 50
+python3 $executable --gen_dummy_particles -f $input -z $zo -o $outfolder/test_dummy_grid.pdb   -s semicylinder_plane -g r_cylinder:100 r_junction:50 l_flat:100 l_cylinder:100  --dummy_grid_spacing 3 --dummy_grid_thickness 50
 
 
 

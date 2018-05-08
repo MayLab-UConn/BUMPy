@@ -1057,6 +1057,8 @@ def parse_command_lines():
     optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
 
+    dummy_arguments.add_argument('--gen_dummy_particles', action='store_true',
+                                 help='Add a grid of dummy particles surrounding bilayer' )
     dummy_arguments.add_argument('--dummy_name', metavar='', type=str, default='DUMY',
                                  help='Dummy particle atomname/resname. Defaults to DUMY')
     dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
@@ -1149,7 +1151,7 @@ def main():
     shape.boxdims = shape_tobuild.final_dimensions(**geometric_args)
     print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
 
-    if args.dummy_grid_thickness:
+    if args.gen_dummy_particles:
         print('Creating dummy particles')
         dummy_name = args.dummy_name[0:4]   # shorten to first 4 letters
         dummy_template = gen_dummy_grid(thickness=args.dummy_grid_thickness, lateral_distance=args.dummy_grid_spacing,
@@ -1167,7 +1169,7 @@ def main():
     if args.p:
         shape.write_topology(args.p)
     if args.n:
-        if args.dummy_grid_thickness:
+        if args.gen_dummy_particles:
             shape.write_index(args.n, dummy_name=dummy_name)
         else:
             shape.write_index(args.n)

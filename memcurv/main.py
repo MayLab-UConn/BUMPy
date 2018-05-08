@@ -357,27 +357,29 @@ class Molecules:
     # file i/o
     # -------------------------------------------------------------------------
     def read_input(self, filein, fmt='pdb', reorganize=False, ignore=[]):
-        '''Read input pdb
+        '''Read input pdb or gro. .gro files are free format, which is tricky for reading if fields are missing or
+           don't have whitespace (ie as occurs in manual format between resnumber and resname).
         '''
         with open(filein, "r") as fid:
 
             if filein[-4:] == '.gro':   # default is pdb
                 # remember to convert to angstroms
                 stringin = fid.readlines()
-                stringin.pop(0)      # remove first line
+                stringin.pop(0)      # remove title
+                stringin.pop(0)      # remove atom count, can't use with exclusions
+
+                temp = stringin.pop()  # get tail end for box dims
+                while temp.isspace():
+                    temp = stringin.pop()    # take care of any potential trailing whitespace
+                self.boxdims = [10 * float(i) for i in temp.split()[0:3]]   # final line is box coordinates
 
                 if ignore:
                     string_processed = [line for line in stringin if not line[11:15].strip() in ignore]
                 else:
                     string_processed = stringin
+                n_atoms = len(string_processed)
 
-                temp = string_processed.pop()
-                while temp.isspace():
-                    temp = string_processed.pop()    # take care of any trailing whitespace
-                self.boxdims = [10 * float(i) for i in temp.split()[0:3]]   # final line is box coordinates
-
-                n_atoms = int(string_processed.pop(0).strip())
-                self.coords = np.empty((len(string_processed), 3))
+                self.coords = np.empty((n_atoms, 3))
 
                 atomname = np.empty(n_atoms, dtype="<U4")
                 resname  = np.empty(n_atoms, dtype="<U4")
@@ -478,7 +480,7 @@ class Molecules:
 
         with open(outfile, 'w', buff) as fout:
             if outfile[-4:] == '.gro':  # defaults to pdb otherwise
-                self.coords /= 10    # interal is angstroms, need to get back to nm
+                self.coords /= 10    # internal is angstroms, need to get back to nm
                 if header:
                     fout.write('Generated using command: {:s}\n'.format(header))
                 else:
@@ -486,7 +488,7 @@ class Molecules:
                 fout.write(' {:d}\n'.format(nparts))
                 resid = np.mod(resid, 100000)    # 99,999 max for gro
                 atomno = np.mod(np.arange(1, nparts + 1), 100000)
-                fout.writelines(["{:5d}{:5s}{:5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
+                fout.writelines(["{:5d}{:>5s}{:5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
                                 i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(resid, self.metadata.resname,
                                                                                        self.metadata.atomname,
                                                                                        atomno,

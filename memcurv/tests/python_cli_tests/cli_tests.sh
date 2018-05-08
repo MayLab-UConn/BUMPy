@@ -18,6 +18,15 @@ while read line; do
   fi
 done < shapes.txt
 
+# ------------------------------------------------------------------------------------
+# tests .gro input and output capacity
+# ------------------------------------------------------------------------------------
+outfolder=gro_format_test_files
+python3 $executable -f ../asymm.gro -z $zo -o $outfolder/test_fromgro.pdb      -s sphere -g r_sphere:100
+python3 $executable -f ../asymm.pdb -z $zo -o $outfolder/test_togro.gro        -s sphere -g r_sphere:100
+python3 $executable -f ../asymm.gro -z $zo -o $outfolder/test_toandfromgro.gro -s sphere -g r_sphere:100
+
+
 
 # ------------------------------------------------------------------------------------
 # runs tests on dummy parameter inputs
@@ -34,4 +43,8 @@ python3 $executable --gen_dummy_particles -f $input -z $zo -o $outfolder/test_du
 outfolder="exclusion_test_files"
 python3 $executable -f $outfolder/asymm_solvated.pdb -z $zo -o $outfolder/test_exclusion_1excl.pdb -n $outfolder/test_exclusion_1excl.ndx -p $outfolder/test_exclusion_1excl.top  --ignore_resnames W        -s sphere -g r_sphere:50
 python3 $executable -f $outfolder/asymm_solv_ion.pdb -z $zo -o $outfolder/test_exclusion_2excl.pdb -n $outfolder/test_exclusion_2excl.ndx -p $outfolder/test_exclusion_2excl.top  --ignore_resnames W:SOD    -s sphere -g r_sphere:50
+# check gro input filter
+python3 $executable -f $outfolder/asymm_solv_ion.gro -z $zo -o $outfolder/test_exclusion_fromgro.gro -n $outfolder/test_exclusion_fromgro.ndx -p $outfolder/test_exclusion_fromgro.top  --ignore_resnames W:SOD    -s sphere -g r_sphere:50
+
+
 exit

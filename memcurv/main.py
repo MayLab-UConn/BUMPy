@@ -443,17 +443,13 @@ class Molecules:
         # default is to bring everything to positive regime, allows for up to
         # 9999 angstroms in PDB file format
         if position == 'positive':
-            out_coords = self.coords - np.min(self.coords, axis=0)
+            self.coords -= np.min(self.coords, axis=0)
         elif position == 'positive_xy':
-            out_coords = self.coords
-            out_coords[:, 0:2] = out_coords[:, 0:2] - np.min(out_coords[:, 0:2], axis=0)
+            self.coords[:, 0:2] = self.coords[:, 0:2] - np.min(self.coords[:, 0:2], axis=0)
         elif position == 'center':
-            out_coords = self.coords - np.mean(self.coords, axis=0)
+            self.coords -= np.mean(self.coords, axis=0)
         elif position == 'center_xy':
-            out_coords = self.coords
-            out_coords[:, 0:2] = out_coords[:, 0:2] - np.mean(out_coords[:, 0:2], axis=0)
-        else:
-            out_coords = self.coords
+            self.coords[:, 0:2] = self.coords[:, 0:2] - np.mean(self.coords[:, 0:2], axis=0)
 
         # generating resid list
         nparts = self.coords.shape[0]
@@ -468,7 +464,7 @@ class Molecules:
 
         with open(outfile, 'w', buff) as fout:
             if outfile[-4:] == '.gro':  # defaults to pdb otherwise
-                out_coords /= 10    # interal is angstroms, need to get back to nm
+                self.coords /= 10    # interal is angstroms, need to get back to nm
                 if header:
                     fout.write('Generated using command: {:s}\n'.format(header))
                 else:
@@ -480,9 +476,9 @@ class Molecules:
                                 i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(resid, self.metadata.resname,
                                                                                        self.metadata.atomname,
                                                                                        atomno,
-                                                                                       out_coords[:, 0],
-                                                                                       out_coords[:, 1],
-                                                                                       out_coords[:, 2])])
+                                                                                       self.coords[:, 0],
+                                                                                       self.coords[:, 1],
+                                                                                       self.coords[:, 2])])
                 fout.write(' {:9.5f} {:9.5f} {:9.5f}\n'.format(self.boxdims[0] / 10, self.boxdims[1] / 10,
                                                                self.boxdims[2] / 10))
             else:
@@ -498,9 +494,9 @@ class Molecules:
                                 i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(atomno, self.metadata.atomname,
                                                                                        self.metadata.resname,
                                                                                        resid,
-                                                                                       out_coords[:, 0],
-                                                                                       out_coords[:, 1],
-                                                                                       out_coords[:, 2])])
+                                                                                       self.coords[:, 0],
+                                                                                       self.coords[:, 1],
+                                                                                       self.coords[:, 2])])
 
     def write_topology(self, outfile):
         '''Writes out simple topology file (.top)'''

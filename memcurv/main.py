@@ -280,8 +280,9 @@ class Molecules:
 
     def slice_pdb(self, slice_indices):
         ''' returns a new instance of current pdb class with sliced indices'''
-        metadata_slice = self.metadata.slice(slice_indices)
-        molecule_slice = Molecules(metadata=metadata_slice, coords=self.coords[slice_indices, :], boxdims=[0, 0, 0])
+        metadata_slice = self.metadata.slice(slice_indices.astype(bool))
+        molecule_slice = Molecules(metadata=metadata_slice, coords=self.coords[slice_indices.astype(bool), :],
+                                   boxdims=[0, 0, 0])
         return molecule_slice
 
     def duplicate_laterally(self, nx, ny):
@@ -321,37 +322,37 @@ class Molecules:
     def rectangular_slice(self, xvals, yvals, exclude_radius=0, cutoff_method='com', nlips=None):
         ''' The exclude method is broken right now. Doesn't actually slice bilayer, just returns indices to slice
         '''
-        indices_to_keep = []
-
+        atom_bool_to_keep = np.zeros(self.coords.shape[0], dtype=bool)
         if cutoff_method == 'com':
             res_starts = np.where(self.metadata.ressize > 0)[0]
             res_coms = self.calc_residue_COMS()
-            all_inrange = np.asarray(np.where( (res_coms[:, 0] > xvals[0]) & (res_coms[:, 0] < xvals[1]) &
-                                               (res_coms[:, 1] > yvals[0]) & (res_coms[:, 1] < yvals[1]) ))[0]
+            res_bool_to_keep = ((res_coms[:, 0] > xvals[0]) & (res_coms[:, 0] < xvals[1]) &
+                                (res_coms[:, 1] > yvals[0]) & (res_coms[:, 1] < yvals[1]))
             if exclude_radius > 0:
-                centered_coords = res_coms - res_coms[all_inrange].mean(axis=0)
-                theta, rho, z = cart2pol(centered_coords)
-                rho_outside_exclusion = np.where(rho > exclude_radius)[0]
-                all_inrange = np.intersect1d(all_inrange, rho_outside_exclusion)
-            for i in all_inrange:
-                indices_to_keep += list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]]))
-
-        return np.asarray(indices_to_keep)
+                centered_coords = res_coms - res_coms[res_bool_to_keep].mean(axis=0)
+                _, rho, _ = cart2pol(centered_coords)
+                res_bool_to_keep = (res_bool_to_keep) & (rho > exclude_radius)
+            if cutoff_method == 'com':
+                for resind, atomind in enumerate(res_starts):
+                    atom_bool_to_keep[res_starts[resind]:res_starts[resind] +
+                                      self.metadata.ressize[atomind]] = res_bool_to_keep[resind]
+        return atom_bool_to_keep
 
     def circular_slice(self, center, radius, exclude_radius=0, cutoff_method='com'):
         ''' Doesn't actually slice bilayer, just returns indices to slice'''
-        indices_tokeep = []
+        atom_bool_to_keep = np.zeros(self.coords.shape[0], dtype=bool)
         res_starts = np.where(self.metadata.ressize > 0)[0]
         res_coms = self.calc_residue_COMS()
         centered_coords = res_coms - [center[0], center[1], 0]
-        (theta, rho, z) = cart2pol(centered_coords)
-        all_inrange = np.where((rho <= radius) & (rho >= exclude_radius))[0]
+        (_, rho, _) = cart2pol(centered_coords)
+
+        res_bool_to_keep = (rho <= radius) & (rho >= exclude_radius)
 
         if cutoff_method == 'com':
-            # print('Excluding based on residue COM cutoff')
-            for i in all_inrange:
-                indices_tokeep.extend(list(range(res_starts[i], res_starts[i] + self.metadata.ressize[res_starts[i]])))
-        return np.asarray(indices_tokeep)
+            for resind, atomind in enumerate(res_starts):
+                atom_bool_to_keep[res_starts[resind]:res_starts[resind] +
+                                  self.metadata.ressize[atomind]] = res_bool_to_keep[resind]
+        return atom_bool_to_keep
 
     # -------------------------------------------------------------------------
     # file i/o
@@ -668,15 +669,13 @@ class shapes:
             bot_slice_radius = np.sqrt(2) * (r_sphere - zo[1])
             slice_origin = np.mean(template_bilayer.coords[:, 0:2], axis=0)
             # calculate slice indices
-            in_top_circular_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius,
-                                                                    exclude_radius=r_hole)
-            in_bot_circular_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius,
-                                                                    exclude_radius=r_hole)
-            top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
-            bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
+            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius, exclude_radius=r_hole)
+            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius, exclude_radius=r_hole)
+
             # make slices
-            top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
-            bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_circular_slice, bot_leaflet_ind))
+            top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &  template_bilayer.metadata.leaflets)
+            bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
+
             # scale slices to slice_radius
             top_leaflet.scale_coordinates_radial(slice_radius / top_slice_radius)
             bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
@@ -715,13 +714,12 @@ class shapes:
             xvals = [slice_origin[0], slice_origin[0] + l_cylinder]
             yvals_outer = [slice_origin[1], slice_origin[1] + outer_slice_length]
             yvals_inner = [slice_origin[1], slice_origin[1] + inner_slice_length]
-            in_top_slice =  template_bilayer.rectangular_slice(xvals, yvals_outer)
-            in_bot_slice =  template_bilayer.rectangular_slice(xvals, yvals_inner)
-            top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
-            bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
+            bool_in_top_slice =  template_bilayer.rectangular_slice(xvals, yvals_outer)
+            bool_in_bot_slice =  template_bilayer.rectangular_slice(xvals, yvals_inner)
+
             # make slices
-            top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_slice, top_leaflet_ind))
-            bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_slice, bot_leaflet_ind))
+            top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
+            bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
             # scale coordinates
             top_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / outer_slice_length])
             bot_leaflet.scale_coordinates_rectangular([1, cylinder_slice_length / inner_slice_length])
@@ -773,15 +771,13 @@ class shapes:
 
             slice_origin = np.mean(template_bilayer.coords, axis=0)[0:2]
             # calculate slice indices
-            in_top_circular_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max,
-                                                                    exclude_radius=outer_slice_min)
-            in_bot_circular_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max,
-                                                                    exclude_radius=inner_slice_min)
+            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max,
+                                                                exclude_radius=outer_slice_min)
+            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max,
+                                                                exclude_radius=inner_slice_min)
             # difference from sphere, exclude center
-            top_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 1)[0]
-            bot_leaflet_ind = np.where(template_bilayer.metadata.leaflets == 0)[0]
-            top_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_top_circular_slice, top_leaflet_ind))
-            bot_leaflet = template_bilayer.slice_pdb(np.intersect1d(in_bot_circular_slice, bot_leaflet_ind))
+            top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
+            bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
 
             # scale slices to slice_radius
             top_leaflet.scale_coordinates_toroidal([outer_slice_min, outer_slice_max], [slice_min, slice_max])

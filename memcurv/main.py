@@ -790,10 +790,9 @@ class shapes:
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
 
-            # if print_intermediates:
-            #    if partial == 'inner':
-            #        # temp = top_leaflet.slice_pdb()
-            #        top_leaflet.write_coordinates(print_intermediates)
+            if print_intermediates:
+                if partial == 'inner':
+                    top_leaflet.write_coordinates(print_intermediates)
 
             # top_leaflet.write_coordinates('torus_transform.pdb',position=False)
             if partial == 'inner':
@@ -959,12 +958,6 @@ class shapes:
             cyl = shapes.cylinder.gen_shape(template_2, zo, r_cylinder, l_cylinder, completeness=1)
             cyl.metadata.leaflets = 1 - cyl.metadata.leaflets
             cyl.rotate([0, 90, 0])
-
-            flat_bilayer.write_coordinates(  '/home/kevin/git_repos/memcurv/memcurv/debugging/flat.pdb',  position=None)
-            flat_bilayer_2.write_coordinates('/home/kevin/git_repos/memcurv/memcurv/debugging/flat2.pdb', position=None)
-            cyl.write_coordinates(           '/home/kevin/git_repos/memcurv/memcurv/debugging/cyl.pdb',   position=None)
-            junction.write_coordinates(      '/home/kevin/git_repos/memcurv/memcurv/debugging/junc.pdb',  position=None)
-            junction_2.write_coordinates(    '/home/kevin/git_repos/memcurv/memcurv/debugging/junc2.pdb', position=None)
 
             cyl.append(junction)
             cyl.append(flat_bilayer)
@@ -1179,7 +1172,7 @@ def main():
         mult_factor = (np.ceil( shape_tobuild.dimension_requirements(**geometric_args) /
                                 dummy_template.boxdims[0:2]).astype(int))
         dummy_template.duplicate_laterally(*mult_factor)
-        dummy_shape = shape_tobuild.gen_shape(dummy_template, zo, **geometric_args)
+        dummy_shape = shape_tobuild.gen_shape(dummy_template, 2 * [args.dummy_grid_thickness / 2], **geometric_args)
         shape.append(dummy_shape)
     else:
         dummy_name = ''

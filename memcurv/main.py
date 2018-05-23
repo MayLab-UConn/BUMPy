@@ -449,7 +449,8 @@ class Molecules:
         # assigning resid lengths and leaflets
         self.assign_leaflets()
 
-    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None, dummy_name=None):
+    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None, dummy_name=None,
+                          chunksize=100000):
 
         if reorder:
             self.reorder_by_leaflet()
@@ -480,6 +481,9 @@ class Molecules:
                 count += 1
 
         with open(outfile, 'w', buff) as fout:
+            chunks = list(range(0, nparts, chunksize))
+            chunks.append(nparts + 1)   # so slicing is from 2ndtolast:size
+
             if outfile[-4:] == '.gro':  # defaults to pdb otherwise
                 self.coords /= 10    # internal is angstroms, need to get back to nm
                 if header:
@@ -489,13 +493,16 @@ class Molecules:
                 fout.write(' {:d}\n'.format(nparts))
                 resid = np.mod(resid, 100000)    # 99,999 max for gro
                 atomno = np.mod(np.arange(1, nparts + 1), 100000)
-                fout.writelines(["{:5d}{:>5s}{:5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
-                                i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(resid, self.metadata.resname,
-                                                                                       self.metadata.atomname,
-                                                                                       atomno,
-                                                                                       self.coords[:, 0],
-                                                                                       self.coords[:, 1],
-                                                                                       self.coords[:, 2])])
+                for startind, stopind in zip(chunks[:-1], chunks[1:]):
+                    fout.writelines(["{:5d}{:>5s}{:5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
+                                    i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(
+                                    resid[startind:stopind],    # noqa
+                                    self.metadata.resname[startind:stopind],
+                                    self.metadata.atomname[startind:stopind],
+                                    atomno[startind:stopind],
+                                    self.coords[startind:stopind, 0],
+                                    self.coords[startind:stopind, 1],
+                                    self.coords[startind:stopind, 2])])
                 fout.write(' {:9.5f} {:9.5f} {:9.5f}\n'.format(self.boxdims[0] / 10, self.boxdims[1] / 10,
                                                                self.boxdims[2] / 10))
             else:
@@ -507,13 +514,16 @@ class Molecules:
                 resid = np.mod(resid, 10000)   # 9,999 max for pdb
                 atomno = np.mod(np.arange(1, nparts + 1), 100000)
 
-                fout.writelines(["ATOM  {:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
-                                i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(atomno, self.metadata.atomname,
-                                                                                       self.metadata.resname,
-                                                                                       resid,
-                                                                                       self.coords[:, 0],
-                                                                                       self.coords[:, 1],
-                                                                                       self.coords[:, 2])])
+                for startind, stopind in zip(chunks[:-1], chunks[1:]):
+                    fout.writelines(["ATOM  {:5d} {:4s} {:4s}{:5d}    {:8.3f}{:8.3f}{:8.3f}\n".format(
+                                    i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(
+                                    atomno[startind:stopind],  # noqa
+                                    self.metadata.atomname[startind:stopind],
+                                    self.metadata.resname[startind:stopind],
+                                    resid[startind:stopind],
+                                    self.coords[startind:stopind, 0],
+                                    self.coords[startind:stopind, 1],
+                                    self.coords[startind:stopind, 2])])
 
     def write_topology(self, outfile):
         '''Writes out simple topology file (.top)'''

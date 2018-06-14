@@ -1155,7 +1155,7 @@ def main():
     # flip bilayer if bottom is selected, scale if selected, multiply laterally to appropriate size
     if args.outer == 'bot':
         template_bilayer.rotate([180, 0, 0], com=True)
-        template_bilayer.metadata.leaflets = np.invert(template_bilayer.metadata.leaflets)
+        template_bilayer.metadata.leaflets = 1 - template_bilayer.metadata.leaflets
     if args.apl:
         currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
         newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets

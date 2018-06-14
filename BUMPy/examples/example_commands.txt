@@ -18,32 +18,32 @@ python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s sphere -z 10 -g r_sphere
 # file only writes the number and correct order of the lipids involved - it's up to you to provide the proper itp
 # files for the forcefield and any other molecules involved
 
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdbsmall_flat_bilayer.pdb -s sphere -z 10 -g r_sphere:100 -o out.pdb -n index.ndx -p topol.top
+python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s sphere -z 10 -g r_sphere:100 -o out.pdb -n index.ndx -p topol.top
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Set 2 different values of the pivotal plane (z) - 10 A for the upper leaflet, 12 A for the lower leaflet. Note that
 #  this likely will only be needed for asymmetric bilayers
 
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdbsmall_flat_bilayer.pdb -s sphere -z 10:12 -g r_sphere:100 -o out.pdb
+python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s sphere -z 10:12 -g r_sphere:100 -o out.pdb
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Set up a system with multiple required geometric arguments - see the "-g" section. In this case we set up a cylinder
 # with radius 10 nm and length 20 nm
 
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdbsmall_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb
+python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb
 
 # ----------------------------------------------------------------------------------------------------------------------
 # set up a cylinder with an asymmetric lipid composition (POPC and DOPE on top, DPPC and DPPE on the bottom). Note the
 # differences in the topology and index files.
 
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdbasymm.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx
+python bumpy.py -f input_pdbs/asymm.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Same asymmetric system as above, flipped so that the top leaflet is used to populate the inner leaflet of the cylinder,
 # and vice versa for the outer leaflet. Note that not all shapes have obvious definitions for "inner" and "outer" leaflets,
 # see the shape repository pdf for what conventions were chosen for those shapes.
 
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdbasymm.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx --outer "bot"
+python bumpy.py -f input_pdbs/asymm.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx --outer "bot"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Set up a sphere using a solvated bilayer - ignoring the water in the input structure with --ignore_resnames
@@ -53,4 +53,10 @@ python bumpy.py -f input_pdbs/solvated_bilayer.pdb -s sphere -z 10 -g r_sphere:1
 # ----------------------------------------------------------------------------------------------------------------------
 # Same as above, now ignoring both solvent and ions in a solvated system with salt
 
-python bumpy.py -f input_pdbs/solvated_with_ions.pdb -s sphere -z 10 -g r_sphere:100 -o out.pdb --ignore_resnames W:NA:CL
+python bumpy.py -f input_pdbs/solvated_with_ions.pdb -s sphere -z 10 -g r_sphere:100 -o out.pdb --ignore_resnames W NA CL
+
+
+# IN PROGRESS NOW - DONT TEST
+# ----------------------------------------------------------------------------------------------------------------------
+# create a system with a grid of dummy particles,
+# python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb --gen_dummy_particles

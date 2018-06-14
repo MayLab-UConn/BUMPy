@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-''' Main script for memcurv project'''
+''' Main script for BUMPY project'''
 
 import numpy as np
 import inspect
@@ -528,7 +528,7 @@ class Molecules:
     def write_topology(self, outfile):
         '''Writes out simple topology file (.top)'''
         with open(outfile, 'w') as fout:
-            fout.write("\n\n\n[ system ]\nmemcurv system\n\n[ molecules ]\n")
+            fout.write("\n\n\n[ system ]\nBUMPy system\n\n[ molecules ]\n")
             reslist = self.metadata.resname[np.where(self.metadata.ressize > 0)[0]]
             prev_res = reslist[0]
             counter = 0

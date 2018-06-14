@@ -1,8 +1,8 @@
-memcurv/debugging/**
-memcurv/*.pdb
-memcurv/*.gro
+BUMPy/debugging/**
+BUMPy/*.pdb
+BUMPy/*.gro
 __pycache__
-memcurv/tests/**/test*
+BUMPy/tests/**/test*
 
 *.tpr
 *.trr

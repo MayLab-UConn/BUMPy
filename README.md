@@ -15,10 +15,11 @@ No installation is necessary as long as you have a python (v3) interpreter
 Just numpy!
 
 ### USAGE
-BUMPY is designed to be used at the command line, with something like the command "python bumpy.py [ options ]"
+BUMPY is designed to be used at the command line, with something like the command "python bumpy.py [ options ]". All you
+need is the bumpy.py file!
 
 * For a description of command line options, use the -h option at the command line.
-* For a list of supported curved shapes, use the --list option at the command line, or see the user guide.
+* For a list of supported curved shapes, use the --list option at the command line, or see the shape repository pdf.
 * Example commands with BUMPy are available in the examples directory
 ### DEVELOPMENT
 * BUMPy is maintained on github (link: https://github.com/scal444/BUMPy)

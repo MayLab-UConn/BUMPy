@@ -1,16 +1,16 @@
-Lipid          zo (nm)         Temperature        Notes
-DLPC/DMPC
-DPPC
-POPC
-DOPC
-DBPC
-BGPC
-DGPC
-DLPE
-DPPE 
-POPE
-DOPE
-DBPE
-BGPE
-DGPE
+Forcefield - Martini 2.0, nonpolarizable water
 
+Lipid             zo (nm)         Temperature     Reference    Notes
+DLPC/DMPC      0.84 +/- 0.011        330
+DPPC           1.00 +/- 0.012        330
+POPC           0.96 +/- 0.010        330
+DOPC           0.91 +/- 0.014        330
+DBPC           1.16 +/- 0.013        330
+BGPC           1.10 +/- 0.015        330                       Tails = CCDCC/CCCCC
+DGPC           1.05 +/- 0.012        330
+DPPE           0.90 +/- 0.011        330
+POPE           0.89 +/- 0.014        330
+DOPE           0.83 +/- 0.009        330
+DBPE           1.04 +/- 0.014        330
+BGPE           1.01 +/- 0.010        330
+DGPE           0.97 +/- 0.009        330

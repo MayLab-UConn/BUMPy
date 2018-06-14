@@ -1078,7 +1078,8 @@ def parse_command_lines():
     optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
     optional_arguments.add_argument('--ignore_resnames', metavar='', help='colon separated list of resnames to ignore' +
-                                    'when reading in a structure file, for example to exclude water', default=[])
+                                    'when reading in a structure file, for example to exclude water', default=[],
+                                    nargs="*")
 
     dummy_arguments.add_argument('--gen_dummy_particles', action='store_true',
                                  help='Add a grid of dummy particles surrounding bilayer' )
@@ -1148,7 +1149,7 @@ def main():
     # read in pdb
     print('Reading in PDB file  ... ', end='', flush=True)
     t = time()
-    template_bilayer = Molecules(infile=args.f, ignore=args.ignore_resnames.split(':'))
+    template_bilayer = Molecules(infile=args.f, ignore=args.ignore_resnames)
     print('Finished reading PDB with {:d} atoms - time elapsed = {:.1f} seconds'.format(
           template_bilayer.coords.shape[0], time() - t))
 

@@ -1,5 +1,4 @@
 BUMPy/debugging/**
-BUMPy/*.pdb
 BUMPy/*.gro
 __pycache__
 BUMPy/tests/**/test*

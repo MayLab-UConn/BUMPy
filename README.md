@@ -6,7 +6,7 @@ This program is  used to generate coordinate files for use in molecular dynamics
 The BUMPy publication should be coming out shortly, stay tuned!
 
 ### AUTHORS
-BUMPy is written and maintained by Kevin Boyd (kevin.boyd@uconn.edu).
+BUMPy is written and maintained by Kevin Boyd (kevin.boyd@uconn.edu), in the lab of Eric May at the University of Connecticut.
 
 ### INSTALLATION
 No installation is necessary as long as you have a python (v3) interpreter

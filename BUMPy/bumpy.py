@@ -1075,8 +1075,8 @@ def parse_command_lines():
                                     help='List current repository of shapes and their geometric arguments')
     optional_arguments.add_argument('--outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
-    #optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
-                                    'lipid in final shape - not yet implemented', default=None)
+    # optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
+    #                                'lipid in final shape - not yet implemented', default=None)
     optional_arguments.add_argument('--ignore_resnames', metavar='', help='colon separated list of resnames to ignore' +
                                     'when reading in a structure file, for example to exclude water', default=[],
                                     nargs="*")

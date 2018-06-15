@@ -1075,7 +1075,7 @@ def parse_command_lines():
                                     help='List current repository of shapes and their geometric arguments')
     optional_arguments.add_argument('--outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
-    optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
+    #optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
                                     'lipid in final shape - not yet implemented', default=None)
     optional_arguments.add_argument('--ignore_resnames', metavar='', help='colon separated list of resnames to ignore' +
                                     'when reading in a structure file, for example to exclude water', default=[],
@@ -1085,10 +1085,10 @@ def parse_command_lines():
                                  help='Add a grid of dummy particles surrounding bilayer' )
     dummy_arguments.add_argument('--dummy_name', metavar='', type=str, default='DUMY',
                                  help='Dummy particle atomname/resname. Defaults to DUMY')
-    dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
-                                 help='Create dummy array with thickness specified')
+    dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float, default=50,
+                                 help='(Angstroms) Create dummy array with thickness specified')
     dummy_arguments.add_argument('--dummy_grid_spacing', metavar='', type=float, default=5,
-                                 help='dummy grid spacing distance')
+                                 help='(Angstroms) dummy grid spacing distance')
 
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')

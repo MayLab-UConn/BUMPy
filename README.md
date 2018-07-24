@@ -27,7 +27,7 @@ within the monolayer that does not undergo area changes upon curvature deformati
 controlled with the -z flag. The pivotal plane location is composition-dependent.
 #### Does having an accurate pivotal plane estimate matter?
 It depends on what you're using the system for. Having an inaccurate pivotal plane estimate when building these systems
-leads to area mismatch. We quantify some of the effects of such area mismatch in our publication. The summary of is,
+leads to area mismatch. We quantify some of the effects of such area mismatch in our publication. The summary is,
 the effects of this area mismatch are quantifiable for a number of observables such as lipid splay and diffusion, but
 generally quite small if your estimated pivotal plane location is within a few Angstroms of the true value. This is good
 news, as most of the lipids we've calculated pivotal plane locations for only vary in location by a few angstroms. 10 A
@@ -41,10 +41,9 @@ and you should have reasonable inner and outer leaflet areas
 in the pivotal_planes folder. We hope to add to this repository over time
 * If you want a more quantitative estimate of the pivotal plane location, you can infer a location from some flat bilayer
 properties such as thickness or the lateral pressure profile, though we haven't managed to find an exact relationship between
-z values and flat bilayer properties (and we've tried)
+z values and flat bilayer properties (and we've tried). See our publication for details.
 * If you absolutely need rigorous area matching, and the z value of the lipid you want to simulate hasn't been calculated yet,
-you can do it yourself! See our publication and (Wang and Deserno, J. Chem. Phys. 16, 164109 (2015)). If you do so, please let us
-know and we'll update our repository with your reported values!
+you can do it yourself! See our publication and cite the authors who came up with the z measurement- (Wang and Deserno, J. Chem. Phys. 16, 164109 (2015)). If you do calculate your own pivotal planes, please let us know and we'll update our repository with your reported values!
 
 ### DEVELOPMENT
 * BUMPy is maintained on github (link: https://github.com/MayLab-UConn/BUMPy)

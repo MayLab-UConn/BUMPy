@@ -59,8 +59,8 @@ python bumpy.py -f input_pdbs/solvated_with_ions.pdb -s sphere -z 10 -g r_sphere
 # create a system with a grid of dummy particles with default resname, thickness and lateral spacing. Note the added
 # dummy sections in the index and topology files
 
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx --gen_dummy_particles
+python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx --gen_dummy_particles --dummy_grid_thickness 50
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Same as above, but changing the name of the dummy particle
-python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx --gen_dummy_particles --dummy_name BEAD
+python bumpy.py -f input_pdbs/small_flat_bilayer.pdb -s cylinder -z 10 -g r_cylinder:100 l_cylinder:200 -o out.pdb -p topol.top -n index.ndx --gen_dummy_particles --dummy_grid_thickness 50 --dummy_name BEAD

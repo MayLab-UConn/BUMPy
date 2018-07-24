@@ -1163,11 +1163,11 @@ def main():
         template_bilayer.rotate([180, 0, 0], com=True)
         template_bilayer.metadata.leaflets = 1 - template_bilayer.metadata.leaflets
     # unimplemented right now
-    if args.apl:
-        currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
-        newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets
-        ratio = np.sqrt(newarea / currarea)
-        template_bilayer.scale_coordinates_rectangular(ratio)
+    # if args.apl:
+    #    currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
+    #    newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets
+    #    ratio = np.sqrt(newarea / currarea)
+    #    template_bilayer.scale_coordinates_rectangular(ratio)
 
     mult_factor = (np.ceil(shape_tobuild.dimension_requirements(**geometric_args) /
                            template_bilayer.boxdims[0:2]).astype(int))

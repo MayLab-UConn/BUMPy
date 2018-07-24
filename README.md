@@ -51,7 +51,8 @@ you can do it yourself! See our publication and cite the authors who came up wit
 * If there's a shape you want to simulate, I can likely make a template for it very quickly. Email me with a description of what you want built and I'll add it to the repository.
 ### Bugs
 To report bugs, email Kevin Boyd at kevin.boyd@uconn.edu
-
+Known bugs:
+* .gro reading is unreliable. Suggest using pdb files as input
 ### Tips
 * Units are in Angstroms - be careful with your inputs!
 #### Input bilayer

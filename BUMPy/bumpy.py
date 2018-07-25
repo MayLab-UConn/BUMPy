@@ -10,8 +10,7 @@ from time import time
 from copy import deepcopy
 
 
-__version__ = '0.5'
-
+# github snapshot from Wed Jul 25 08:49:55 EDT 2018
 
 def cart2pol(cart_coords):
     ''' Converts cartesian to polar coordinates. Acts on first 2 columns (xy)
@@ -408,7 +407,7 @@ class Molecules:
                                          leaflets=np.zeros(len(ressize), dtype=int),
                                          ressize=np.array(ressize, dtype=int))
 
-            else:
+            else:   # infile = pdb
                 xcoord, ycoord, zcoord        = [], [], []                   # 3D coordinates
                 atomname, resname             = [], []                       # invariant labels
                 curr_res , prev_res, ressize  = [], [], []                   # residue indexing
@@ -1075,6 +1074,7 @@ def parse_command_lines():
                                     help='List current repository of shapes and their geometric arguments')
     optional_arguments.add_argument('--outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
+    # apl option unimplemented
     # optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
     #                                'lipid in final shape - not yet implemented', default=None)
     optional_arguments.add_argument('--ignore_resnames', metavar='', help='colon separated list of resnames to ignore' +
@@ -1085,7 +1085,7 @@ def parse_command_lines():
                                  help='Add a grid of dummy particles surrounding bilayer' )
     dummy_arguments.add_argument('--dummy_name', metavar='', type=str, default='DUMY',
                                  help='Dummy particle atomname/resname. Defaults to DUMY')
-    dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float, default=50,
+    dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
                                  help='(Angstroms) Create dummy array with thickness specified')
     dummy_arguments.add_argument('--dummy_grid_spacing', metavar='', type=float, default=5,
                                  help='(Angstroms) dummy grid spacing distance')
@@ -1115,6 +1115,10 @@ def gen_dummy_grid(lateral_distance=5, thickness=50, atomname='DUMY', resname='D
 
 def display_parameters(cl_args):
     '''Displays selected parameters upon command line execution'''
+    pass
+
+
+def check_argument_sanity():
     pass
 
 
@@ -1157,11 +1161,12 @@ def main():
     if args.outer == 'bot':
         template_bilayer.rotate([180, 0, 0], com=True)
         template_bilayer.metadata.leaflets = 1 - template_bilayer.metadata.leaflets
-    if args.apl:
-        currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
-        newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets
-        ratio = np.sqrt(newarea / currarea)
-        template_bilayer.scale_coordinates_rectangular(ratio)
+    # unimplemented right now
+    # if args.apl:
+    #    currarea = template_bilayer.boxdims[0] * template_bilayer.boxdims[1]
+    #    newarea = args.apl * template_bilayer.coords.shape[0] / 2  # 2 leaflets
+    #    ratio = np.sqrt(newarea / currarea)
+    #    template_bilayer.scale_coordinates_rectangular(ratio)
 
     mult_factor = (np.ceil(shape_tobuild.dimension_requirements(**geometric_args) /
                            template_bilayer.boxdims[0:2]).astype(int))
@@ -1176,6 +1181,10 @@ def main():
     print('Finished - time elapsed = {:.1f} seconds'.format(time() - t))
 
     if args.gen_dummy_particles:
+        if not args.dummy_grid_thickness:
+            raise Exception("You specified the construction of a dummy grid with --gen_dummy_particles, but did" +
+                            "not specify the grid thickness, which is necessary")
+
         print('Creating dummy particles')
         dummy_name = args.dummy_name[0:4]   # shorten to first 4 letters
         dummy_template = gen_dummy_grid(thickness=args.dummy_grid_thickness, lateral_distance=args.dummy_grid_spacing,

@@ -1,5 +1,5 @@
 # These commands assume bumpy.py and the input files are in your working directory, and that the "python" command is
-python 3 - check with "python --version", as for some setups it'll be python2, which is not supported.
+# python 3 - check with "python --version", as for some setups it'll be python2, which is not supported.
 
 ----------------------------------------------------------------------------------------------------------------------
 # show the help text

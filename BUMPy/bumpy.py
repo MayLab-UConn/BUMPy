@@ -1,16 +1,28 @@
 #!/usr/bin/env python
 
-''' Main script for BUMPY project'''
+''' Main script for BUMPY project.
+    No official version numbering for this script
 
-import numpy as np
+    github snapshot from Thu Jul 26 09:03:40 EDT 2018
+'''
+
 import inspect
 import sys
 from argparse import ArgumentParser
 from time import time
 from copy import deepcopy
 
+# The two main requirements of bumpy are that the python interpreter is v3, and that numpy is installed.
+# Exit if otherwise
+try:
+    import numpy as np
+except ImportError:
+    print("numpy does not appear to be installed, cannot run script")
+    sys.exit()
+if sys.version_info[0] == 2:
+    print("You are using python version 2, you must use python v3 for this script, exiting")
+    sys.exit()
 
-# github snapshot from Wed Jul 25 08:49:55 EDT 2018
 
 def cart2pol(cart_coords):
     ''' Converts cartesian to polar coordinates. Acts on first 2 columns (xy)
@@ -1128,7 +1140,7 @@ def check_argument_sanity():
 def main():
     cli = " ".join(sys.argv)
     args = parse_command_lines()
-    display_parameters(args)  # show user what they selected
+    display_parameters(args)  # show user what they selected - not yet implemented
 
     if args.list:
         print('Shapes in repository, with listed arguments:\n')

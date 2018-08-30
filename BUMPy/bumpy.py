@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Thu Jul 26 09:03:40 EDT 2018
+    github snapshot from Thu Aug 30 14:58:03 EDT 2018
 '''
 
 import inspect
@@ -171,11 +171,14 @@ class Molecules:
         meanvals = np.mean(self.coords, axis=0)
         self.coords -= [meanvals[0], meanvals[1], 0]
         (theta, rho, z) = cart2pol(self.coords)                      # center and turn to polar coordinates
+
+        # get scaling ratio
         curr_range_size = current_range[1] - current_range[0]
-        midpoint  = (current_range[0] + current_range[1]) / 2
         new_range_size  = new_range[1] - new_range[0]
         ratio = new_range_size / curr_range_size
-        rho = (rho - midpoint) * ratio  + midpoint
+
+        # subtract to 0 before scaling, then push to start of new range
+        rho = (rho - current_range[0]) * ratio  + new_range[0]
         self.coords = pol2cart(theta, rho, z) + [meanvals[0], meanvals[1], 0]
 
     def cylindrical_transform(self, r, outer_leaflet='top'):
@@ -681,7 +684,7 @@ class shapes:
         def final_dimensions(r_sphere, buff=50):
             return np.array([2 * (r_sphere + buff), 2 * (r_sphere + buff), r_sphere + (2 * buff)])
 
-        @ staticmethod
+        @staticmethod
         def gen_shape(template_bilayer, zo, r_sphere, r_hole=0, cutoff_method='com', print_intermediates=False):
             ''' returns molecules instance of semisphere'''
             # calculating slice radii
@@ -761,7 +764,7 @@ class shapes:
             return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
 
         @staticmethod
-        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full',
+        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='inner',
                       cutoff_method='com', print_intermediates=False):
             '''Makes a partial torus with given parameters
 
@@ -799,33 +802,30 @@ class shapes:
             # difference from sphere, exclude center
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
+            template_bilayer.write_coordinates('template.pdb')
+            top_leaflet.write_coordinates('top_prescale.pdb', position=False)
+            bot_leaflet.write_coordinates('bot_prescale.pdb', position=False)
 
             # scale slices to slice_radius
             top_leaflet.scale_coordinates_toroidal([outer_slice_min, outer_slice_max], [slice_min, slice_max])
             bot_leaflet.scale_coordinates_toroidal([inner_slice_min, inner_slice_max], [slice_min, slice_max])
 
+            top_leaflet.write_coordinates('top_scaled.pdb', position=False)
+            bot_leaflet.write_coordinates('bot_scaled.pdb', position=False)
             top_leaflet.append(bot_leaflet)
-            # top_leaflet.write_coordinates('torus_merge_notransform.pdb',position=False)
+            top_leaflet.write_coordinates('torus_merge_notransform.pdb', position=False)
             # check quarter torus, use circular slice to cut off one side or other
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
-
-            if print_intermediates:
-                if partial == 'inner':
-                    top_leaflet.write_coordinates(print_intermediates)
-
-            # top_leaflet.write_coordinates('torus_transform.pdb',position=False)
+            top_leaflet.toroidal_transform(r_torus, r_tube)
+            top_leaflet.write_coordinates('torus_transform.pdb', position=False)
             if partial == 'inner':
                 top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(
                                                     np.mean(top_leaflet.coords, axis=0), r_torus))
             elif partial == 'outer':
                 top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords, axis=0),
                                                     r_torus + tube_circumference, exclude_radius=r_torus))
-
-            if print_intermediates:
-                top_leaflet.write_coordinates(print_intermediates, position=None)
-            top_leaflet.toroidal_transform(r_torus, r_tube)
 
             return top_leaflet
 

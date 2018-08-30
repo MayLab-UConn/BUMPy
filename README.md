@@ -53,6 +53,7 @@ you can do it yourself! See our publication and cite the authors who came up wit
 To report bugs, email Kevin Boyd at kevin.boyd@uconn.edu
 Known bugs:
 * .gro reading is unreliable. Suggest using pdb files as input
+* toroidal junction total lipid counts are off by a factor of ~0.1-0.2, due to improper slicing. Will try to fix ASAP
 ### Tips
 * Units are in Angstroms - be careful with your inputs!
 #### Input bilayer

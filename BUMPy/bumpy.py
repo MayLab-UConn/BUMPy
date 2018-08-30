@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Thu Aug 30 14:58:03 EDT 2018
+    github snapshot from Thu Aug 30 16:33:03 EDT 2018
 '''
 
 import inspect
@@ -216,6 +216,15 @@ class Molecules:
         rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi / 2)
         self.coords = pol2cart(theta, rho_transform, z_transform)
 
+    def pre_spherical_rescale(self, radius):
+        (theta, rho, z) = cart2pol(self.coords)
+        total_area = 2 * np.pi * (radius ** 2)
+        areas = np.linspace(0, total_area, self.coords.shape[0])
+        phi_sections = np.arccos(1 - (areas / total_area))
+        radial_sections = radius * (np.pi / 2) * phi_sections / phi_sections.max()
+        sorted_rho_ind = np.argsort(rho)
+        rho[sorted_rho_ind] = radial_sections
+        self.coords = pol2cart(theta, rho, z)
     # -------------------------------------------------------------------------
     # Calculate and superficially change dataset properties
     # -------------------------------------------------------------------------
@@ -703,11 +712,17 @@ class shapes:
             # scale slices to slice_radius
             top_leaflet.scale_coordinates_radial(slice_radius / top_slice_radius)
             bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
+
+            #top_leaflet.pre_spherical_rescale(r_sphere)
+            #bot_leaflet.pre_spherical_rescale(r_sphere)
+
+            top_leaflet.write_coordinates('test_intermediate.pdb', position=False)
+
             # merge and transform slices
             top_leaflet.append(bot_leaflet)
 
             if print_intermediates:
-                top_leaflet.write_coordinates(print_intermediates, position=None)
+                top_leaflet.write_coordinates(print_intermediates, position=False)
 
             top_leaflet.spherical_transform(r_sphere)
             return top_leaflet

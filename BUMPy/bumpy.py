@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Thu Aug 30 16:33:03 EDT 2018
+    github snapshot from Fri Aug 31 16:32:12 EDT 2018
 '''
 
 import inspect
@@ -216,7 +216,7 @@ class Molecules:
         rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi / 2)
         self.coords = pol2cart(theta, rho_transform, z_transform)
 
-    def pre_spherical_rescale(self, radius):
+    def scale_flat_to_spherical(self, radius):
         (theta, rho, z) = cart2pol(self.coords)
         total_area = 2 * np.pi * (radius ** 2)
         areas = np.linspace(0, total_area, self.coords.shape[0])
@@ -713,10 +713,8 @@ class shapes:
             top_leaflet.scale_coordinates_radial(slice_radius / top_slice_radius)
             bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
 
-            #top_leaflet.pre_spherical_rescale(r_sphere)
-            #bot_leaflet.pre_spherical_rescale(r_sphere)
-
-            top_leaflet.write_coordinates('test_intermediate.pdb', position=False)
+            top_leaflet.scale_flat_to_spherical(r_sphere)
+            bot_leaflet.scale_flat_to_spherical(r_sphere)
 
             # merge and transform slices
             top_leaflet.append(bot_leaflet)
@@ -769,7 +767,7 @@ class shapes:
             top_leaflet.cylindrical_transform(r_cylinder)
             return top_leaflet
 
-    class partial_torus(shape):
+    class inner_quarter_torus(shape):
         @staticmethod
         def dimension_requirements(r_torus, r_tube, buff=50):
             return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2)
@@ -779,22 +777,8 @@ class shapes:
             return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
 
         @staticmethod
-        def gen_shape(template_bilayer, zo, r_torus, r_tube, partial='inner',
-                      cutoff_method='com', print_intermediates=False):
+        def gen_shape(template_bilayer, zo, r_torus, r_tube, cutoff_method='com', print_intermediates=False):
             '''Makes a partial torus with given parameters
-
-            The flat circular slice of a half_torus with torus R ranges from(R-r') to (R+r'),
-            where r' = circumference of tube / 4
-
-            Can get a quarter torus as well using partial='inner' for the shorter junction,
-            partial ='outer' for the larger
-
-            partial tori are oriented so that the cylindrical edges point DOWN, and has a minimum at 0 z
-
-            I can't figure out good math on where to center / scale a quarter torus, in regards to the the effect of
-            slicing on lipid ratios. Ie, can't just match length of slice to tube radius, as >>WHERE<< you slice changes
-            total ratios, as opposed to cylinders (and spheres sorta). SO, will just do an additional slice of the half
-            torus if quarter is selected
             '''
 
             tube_circumference = 2 *  np.pi * r_tube
@@ -817,30 +801,17 @@ class shapes:
             # difference from sphere, exclude center
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
-            template_bilayer.write_coordinates('template.pdb')
-            top_leaflet.write_coordinates('top_prescale.pdb', position=False)
-            bot_leaflet.write_coordinates('bot_prescale.pdb', position=False)
 
             # scale slices to slice_radius
             top_leaflet.scale_coordinates_toroidal([outer_slice_min, outer_slice_max], [slice_min, slice_max])
             bot_leaflet.scale_coordinates_toroidal([inner_slice_min, inner_slice_max], [slice_min, slice_max])
 
-            top_leaflet.write_coordinates('top_scaled.pdb', position=False)
-            bot_leaflet.write_coordinates('bot_scaled.pdb', position=False)
             top_leaflet.append(bot_leaflet)
-            top_leaflet.write_coordinates('torus_merge_notransform.pdb', position=False)
             # check quarter torus, use circular slice to cut off one side or other
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
             top_leaflet.toroidal_transform(r_torus, r_tube)
-            top_leaflet.write_coordinates('torus_transform.pdb', position=False)
-            if partial == 'inner':
-                top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(
-                                                    np.mean(top_leaflet.coords, axis=0), r_torus))
-            elif partial == 'outer':
-                top_leaflet = top_leaflet.slice_pdb(top_leaflet.circular_slice(np.mean(top_leaflet.coords, axis=0),
-                                                    r_torus + tube_circumference, exclude_radius=r_torus))
 
             return top_leaflet
 
@@ -865,7 +836,7 @@ class shapes:
     class torus(shape):
         @staticmethod
         def dimension_requirements(r_torus, r_tube, buff=50):
-            return shapes.partial_torus.dimension_requirements(r_torus, r_tube)
+            return shapes.inner_quarter_torus.dimension_requirements(r_torus, r_tube)
 
         @staticmethod
         def final_dimensions(r_torus, r_tube, buff=50):
@@ -877,7 +848,7 @@ class shapes:
             if r_tube >= r_torus:
                 raise UserWarning("r_torus should be less than r_tube for a ring torus")
 
-            top_half = shapes.partial_torus.gen_shape(template_bilayer, zo, r_torus, r_tube, partial='full')
+            top_half = shapes.inner_quarter_torus.gen_shape(template_bilayer, zo, r_torus, r_tube)
             bot_half = deepcopy(top_half)
             bot_half.rotate([180, 0, 0])
             top_half.append(bot_half)
@@ -930,7 +901,7 @@ class shapes:
         def dimension_requirements(r_sphere, r_junction, l_flat, buff=50):
             sphdims = shapes.semisphere.dimension_requirements(r_sphere)
             flatdims = np.array([l_flat, l_flat])
-            jdims  =  shapes.partial_torus.dimension_requirements(r_sphere + r_junction, r_junction)
+            jdims  =  shapes.inner_quarter_torus.dimension_requirements(r_sphere + r_junction, r_junction)
             return np.array([max([sphdims[0], flatdims[0], jdims[0]]), max([sphdims[1], flatdims[1], jdims[1]])])
 
         @staticmethod
@@ -945,8 +916,7 @@ class shapes:
             template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
             template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
 
-            junction  = shapes.partial_torus.gen_shape(template_2, zo,
-                                                       r_sphere + r_junction, r_junction, partial='inner')
+            junction  = shapes.inner_quarter_torus.gen_shape(template_2, zo, r_sphere + r_junction, r_junction,)
             junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
 
             junction.rotate([180, 0, 0])
@@ -977,8 +947,7 @@ class shapes:
             if (r_cylinder + r_junction) > (l_flat / 2):
                 raise UserWarning("Flat region too small for cylinder/junction radii")
 
-            junction = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction,
-                                                      partial='inner')
+            junction = shapes.inner_quarter_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction)
             junction.translate([0, 0, l_cylinder / 2])
             junction_2 = deepcopy(junction)
             junction_2.rotate( [180, 0, 0])
@@ -1047,8 +1016,7 @@ class shapes:
             sph2 = deepcopy(sph1)
             sph1.rotate([0,  90, 0])
             sph2.rotate([0, 270, 0])
-            junc1 = shapes.partial_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction,
-                                                   r_junction, partial='inner')
+            junc1 = shapes.inner_quarter_torus.gen_shape(template_bilayer, zo, r_cylinder + r_junction, r_junction)
             junc2 = deepcopy(junc1)
             junc1.rotate([0,  90, 0])
             junc2.rotate([0, 270, 0])

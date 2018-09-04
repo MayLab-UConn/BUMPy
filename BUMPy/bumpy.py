@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Fri Aug 31 16:32:12 EDT 2018
+    github snapshot from Tue Sep  4 10:55:27 EDT 2018
 '''
 
 import inspect
@@ -41,6 +41,13 @@ def pol2cart(theta, rho, z):
     y = rho * np.sin(theta)
     cart_coords = np.stack((x, y, z), axis=1)
     return cart_coords
+
+
+def sin_approximation(theta):
+    'Macluarin expansion of sine function to 5 terms. Theta in radians'
+    def taylor_factorial(a, n):
+        return (a ** n) / np.math.factorial(n)
+    return theta - taylor_factorial(theta, 3) + taylor_factorial(theta, 5) - taylor_factorial(theta, 7) + taylor_factorial(theta, 9)
 
 
 # ------------------------------------------------------------------------------
@@ -225,6 +232,12 @@ class Molecules:
         sorted_rho_ind = np.argsort(rho)
         rho[sorted_rho_ind] = radial_sections
         self.coords = pol2cart(theta, rho, z)
+
+    def scale_flat_to_inner_partial_toroid(self, r_torus, r_tube):
+        theta, rho, z = cart2pol(self.coords)
+        total_area = (np.pi ** 2) * r_torus * r_tube - 2 * np.pi * (r_tube ** 2)
+        areas = np.linspace(0, total_area, self.coords.shape[0])
+
     # -------------------------------------------------------------------------
     # Calculate and superficially change dataset properties
     # -------------------------------------------------------------------------
@@ -781,23 +794,24 @@ class shapes:
             '''Makes a partial torus with given parameters
             '''
 
-            tube_circumference = 2 *  np.pi * r_tube
-            inner_tube_circumference = 2 * np.pi * (r_tube - zo[1])
-            outer_tube_circumference = 2 * np.pi * (r_tube + zo[0])
+            # calculate areas needed to match torus area, which for quarter torus is
+            # A (inner quarter) = pi ^2 R r - 2 pi r^2
+            outer_r_tube = r_tube + zo[0]
+            inner_r_tube = r_tube - zo[1]
 
-            slice_min = r_torus - (tube_circumference / 4)
-            slice_max = r_torus + (tube_circumference / 4)
-            inner_slice_min = r_torus - (inner_tube_circumference / 4)
-            outer_slice_min = r_torus - (outer_tube_circumference / 4)
-            inner_slice_max = r_torus + (inner_tube_circumference / 4)
-            outer_slice_max = r_torus + (outer_tube_circumference / 4)
+            slice_min       = r_torus - r_tube
+            inner_slice_min = r_torus - inner_r_tube
+            outer_slice_min = r_torus - outer_r_tube
+
+            slice_max       = np.sqrt( r_torus ** 2 -  r_tube        ** 2 + r_torus *       r_tube * (np.pi - 2) )
+            inner_slice_max = np.sqrt( r_torus ** 2 - (inner_r_tube) ** 2 + r_torus * inner_r_tube * (np.pi - 2) )
+            outer_slice_max = np.sqrt( r_torus ** 2 - (outer_r_tube) ** 2 + r_torus * outer_r_tube * (np.pi - 2) )
 
             slice_origin = np.mean(template_bilayer.coords, axis=0)[0:2]
             # calculate slice indices
-            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max,
-                                                                exclude_radius=outer_slice_min)
-            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max,
-                                                                exclude_radius=inner_slice_min)
+            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max, exclude_radius=outer_slice_min)
+            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max, exclude_radius=inner_slice_min)
+
             # difference from sphere, exclude center
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
@@ -816,7 +830,6 @@ class shapes:
             return top_leaflet
 
     class sphere(shape):
-
         @staticmethod
         def dimension_requirements(r_sphere, buff=50):
             return shapes.semisphere.dimension_requirements(r_sphere)

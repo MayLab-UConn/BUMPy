@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Wed Sep  5 13:49:43 EDT 2018
+    github snapshot from Wed Sep  5 15:53:36 EDT 2018
 '''
 
 import inspect
@@ -58,9 +58,16 @@ def inner_toroid_angle_from_area(r_torus, r_tube, area):
     return fsolve(toroid_area, 0)
 
 
+def outer_toroid_angle_from_area(r_torus, r_tube, area):
+    ''' Numerically solves for the angle corresponding to a sliced inner torus with given dimensions and area'''
+    def toroid_area(theta):
+        return 2 * np.pi * r_torus * r_tube * theta + 2 * np.pi * r_tube * r_tube * np.sin(theta) - area
+    return fsolve(toroid_area, 0)
+
 # ------------------------------------------------------------------------------
 # Molecules class
 # ------------------------------------------------------------------------------
+
 
 class Metadata:
     ''' Structure containing numpy arrays that contains atomnames, resnames, leaflet info, molecule info
@@ -206,8 +213,18 @@ class Molecules:
         arc_length = rho - (r_torus - r_tube)
         arc_length_angle = arc_length / r_tube   # should be from 0 to pi / 2
         radii = r_tube + z
-        z_transform = radii * np.sin(arc_length_angle )
+        z_transform = radii * np.sin(arc_length_angle)
         rho_transform = r_torus + radii * np.sin(arc_length_angle + 3 * np.pi / 2)
+        self.coords = pol2cart(theta, rho_transform, z_transform)
+
+    def outer_toroidal_transform(self, r_torus, r_tube):
+        self.center_on_zero()
+        (theta, rho, z) = cart2pol(self.coords)
+        arc_length = rho - r_torus
+        arc_length_angle = arc_length / r_tube   # should be from 0 to pi / 2
+        radii = r_tube + z
+        z_transform = radii * np.cos(arc_length_angle)
+        rho_transform = r_torus + radii * np.sin(arc_length_angle)
         self.coords = pol2cart(theta, rho_transform, z_transform)
 
     def scale_flat_to_spherical(self, radius, zo_radius):
@@ -823,6 +840,54 @@ class shapes:
 
             return top_leaflet
 
+    class outer_quarter_torus(shape):
+        @staticmethod
+        def dimension_requirements(r_torus, r_tube, buff=50):
+            return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2)
+
+        @staticmethod
+        def final_dimensions(r_torus, r_tube, buff=50):
+            return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
+
+        @staticmethod
+        def gen_shape(template_bilayer, zo, r_torus, r_tube, cutoff_method='com', print_intermediates=False):
+            '''Makes a partial torus with given parameters
+            '''
+
+            # calculate areas needed to match torus area, which for quarter torus is
+            # A (inner quarter) = pi ^2 R r - 2 pi r^2
+            outer_r_tube = r_tube + zo[0]
+            inner_r_tube = r_tube - zo[1]
+
+            slice_min = r_torus
+
+            inner_slice_max = np.sqrt(r_torus ** 2 + r_torus * inner_r_tube + 2 * inner_r_tube ** 2)
+            outer_slice_max = np.sqrt(r_torus ** 2 + r_torus * outer_r_tube + 2 * outer_r_tube ** 2)
+
+            slice_origin = np.mean(template_bilayer.coords, axis=0)[0:2]
+            # calculate slice indices
+            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max, exclude_radius=slice_min)
+            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max, exclude_radius=slice_min)
+            # difference from sphere, exclude center
+            top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
+            bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
+            top_leaflet.write_coordinates('top1.pdb', position=False)
+            bot_leaflet.write_coordinates('bot1.pdb', position=False)
+            # scale slices to slice_radius
+            top_leaflet.scale_flat_to_outer_partial_toroid(r_torus, r_tube, outer_r_tube)
+            bot_leaflet.scale_flat_to_outer_partial_toroid(r_torus, r_tube, inner_r_tube)
+            top_leaflet.write_coordinates('top2.pdb', position=False)
+            bot_leaflet.write_coordinates('bot2.pdb', position=False)
+
+            top_leaflet.append(bot_leaflet)
+            # check quarter torus, use circular slice to cut off one side or other
+            # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
+            # for outer, take circle larger than size of torus including everything,
+            # then exclude up to r_torus
+            top_leaflet.outer_toroidal_transform(r_torus, r_tube)
+
+            return top_leaflet
+
     class sphere(shape):
         @staticmethod
         def dimension_requirements(r_sphere, buff=50):
@@ -843,7 +908,7 @@ class shapes:
     class torus(shape):
         @staticmethod
         def dimension_requirements(r_torus, r_tube, buff=50):
-            return shapes.inner_quarter_torus.dimension_requirements(r_torus, r_tube)
+            return shapes.outer_quarter_torus.dimension_requirements(r_torus, r_tube)
 
         @staticmethod
         def final_dimensions(r_torus, r_tube, buff=50):
@@ -855,11 +920,18 @@ class shapes:
             if r_tube >= r_torus:
                 raise UserWarning("r_torus should be less than r_tube for a ring torus")
 
-            top_half = shapes.inner_quarter_torus.gen_shape(template_bilayer, zo, r_torus, r_tube)
-            bot_half = deepcopy(top_half)
-            bot_half.rotate([180, 0, 0])
-            top_half.append(bot_half)
-            return top_half
+            inside_top_quarter = shapes.inner_quarter_torus.gen_shape(template_bilayer, zo, r_torus, r_tube)
+            inside_bot_quarter = deepcopy(inside_top_quarter)
+            inside_bot_quarter.rotate([180, 0, 0])
+            inside_top_quarter.append(inside_bot_quarter)
+
+            outside_top_quarter = shapes.outer_quarter_torus.gen_shape(template_bilayer, zo, r_torus, r_tube)
+            outside_bot_quarter = deepcopy(outside_top_quarter)
+            outside_bot_quarter.rotate([180, 0, 0])
+
+            inside_top_quarter.append(outside_top_quarter)
+            inside_top_quarter.append(outside_bot_quarter)
+            return inside_top_quarter
 
     class semicylinder_plane(shape):
 

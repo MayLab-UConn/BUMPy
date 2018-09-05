@@ -12,7 +12,7 @@ BUMPy is written and maintained by Kevin Boyd (kevin.boyd@uconn.edu), in the lab
 No installation is necessary as long as you have a python (v3) interpreter
 
 ### DEPENDENCIES
-Just numpy!
+Just numpy and scipy!
 
 ### USAGE
 #### Command line tool
@@ -54,11 +54,6 @@ To report bugs, email Kevin Boyd at kevin.boyd@uconn.edu
 
 Known bugs:
 * .gro reading is unreliable. Suggest using pdb files as input
-* toroidal junction total lipid counts are off by a factor of ~0.1-0.2, due to improper slicing. Will try to fix ASAP
-* spherical and toroidal elements have a minor density issue arising from the fact that you can't directly roll/unroll a
-shape with multiple principal curvatures without area strain. This doesn't affect the total area counts, which are still
-correct, but e.g. the density of particles is greater at the lip of a hemisphere than at the center. This is different
-than the toroidal area mismatch bug. A fix is currently in the works
 ### Tips
 * Units are in Angstroms - be careful with your inputs!
 #### Input bilayer

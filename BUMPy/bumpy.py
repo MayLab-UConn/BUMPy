@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Tue Sep  4 10:55:27 EDT 2018
+    github snapshot from Wed Sep  5 13:49:43 EDT 2018
 '''
 
 import inspect
@@ -11,6 +11,7 @@ import sys
 from argparse import ArgumentParser
 from time import time
 from copy import deepcopy
+from scipy.optimize import fsolve
 
 # The two main requirements of bumpy are that the python interpreter is v3, and that numpy is installed.
 # Exit if otherwise
@@ -48,6 +49,13 @@ def sin_approximation(theta):
     def taylor_factorial(a, n):
         return (a ** n) / np.math.factorial(n)
     return theta - taylor_factorial(theta, 3) + taylor_factorial(theta, 5) - taylor_factorial(theta, 7) + taylor_factorial(theta, 9)
+
+
+def inner_toroid_angle_from_area(r_torus, r_tube, area):
+    ''' Numerically solves for the angle corresponding to a sliced inner torus with given dimensions and area'''
+    def toroid_area(theta):
+        return 2 * np.pi * r_torus * r_tube * theta - 2 * np.pi * r_tube * r_tube * np.sin(theta) - area
+    return fsolve(toroid_area, 0)
 
 
 # ------------------------------------------------------------------------------
@@ -119,6 +127,10 @@ class Molecules:
     # -----------------------------------------------------------------------------------------
     # Geometric transformations
     # -----------------------------------------------------------------------------------------
+
+    def center_xy(self):
+        self.coords[:, 0:2] -= self.coords.mean(axis=0)[0:2]
+
     def center_on_zero(self, ztype='bilayer_interface'):
         meanvals = self.coords.mean(axis=0)
         if ztype == 'bilayer_interface':    # other option is 'mean', which is just the simple average done above
@@ -158,35 +170,10 @@ class Molecules:
         if com:
             self.coords += init_com
 
-    def scale_coordinates_radial(self, ratio):
-        '''Coordinate scaling centered on 0'''
-        meanvals = np.mean(self.coords, axis=0)
-        self.coords -= [meanvals[0], meanvals[1], 0]
-        (theta, rho, z) = cart2pol(self.coords)
-        rho = rho * ratio
-        self.coords = pol2cart(theta, rho, z)
-
     def scale_coordinates_rectangular(self, ratio):
         minvals = np.min(self.coords, axis=0)
         self.coords -= [minvals[0], minvals[1], 0]  # push to 0,0,0 for minima
         self.coords[:, 0:2] = self.coords[:, 0:2] * ratio
-
-    def scale_coordinates_toroidal(self, current_range, new_range):
-        ''' Radial coordinate scaling from one range of spaces to another. This function is a mess but I don't feel
-            like reworking it for now
-        '''
-        meanvals = np.mean(self.coords, axis=0)
-        self.coords -= [meanvals[0], meanvals[1], 0]
-        (theta, rho, z) = cart2pol(self.coords)                      # center and turn to polar coordinates
-
-        # get scaling ratio
-        curr_range_size = current_range[1] - current_range[0]
-        new_range_size  = new_range[1] - new_range[0]
-        ratio = new_range_size / curr_range_size
-
-        # subtract to 0 before scaling, then push to start of new range
-        rho = (rho - current_range[0]) * ratio  + new_range[0]
-        self.coords = pol2cart(theta, rho, z) + [meanvals[0], meanvals[1], 0]
 
     def cylindrical_transform(self, r, outer_leaflet='top'):
         ''' Transforms a rectangular segment of coordinates into a cylinder with
@@ -213,19 +200,20 @@ class Molecules:
         z_transform   = radii * np.cos(arc_length_angle)
         self.coords = pol2cart(theta, rho_transform, z_transform)
 
-    def toroidal_transform(self, r_torus, r_tube):
+    def inner_toroidal_transform(self, r_torus, r_tube):
         self.center_on_zero()
         (theta, rho, z) = cart2pol(self.coords)
-        arc_length = rho - (r_torus - (np.pi * r_tube / 2))
-        arc_length_angle = arc_length / r_tube
+        arc_length = rho - (r_torus - r_tube)
+        arc_length_angle = arc_length / r_tube   # should be from 0 to pi / 2
         radii = r_tube + z
-        z_transform = radii * np.sin(arc_length_angle)
-        rho_transform = r_torus + radii * np.sin(arc_length_angle - np.pi / 2)
+        z_transform = radii * np.sin(arc_length_angle )
+        rho_transform = r_torus + radii * np.sin(arc_length_angle + 3 * np.pi / 2)
         self.coords = pol2cart(theta, rho_transform, z_transform)
 
-    def scale_flat_to_spherical(self, radius):
+    def scale_flat_to_spherical(self, radius, zo_radius):
+        self.center_xy()
         (theta, rho, z) = cart2pol(self.coords)
-        total_area = 2 * np.pi * (radius ** 2)
+        total_area = 2 * np.pi * (zo_radius ** 2)
         areas = np.linspace(0, total_area, self.coords.shape[0])
         phi_sections = np.arccos(1 - (areas / total_area))
         radial_sections = radius * (np.pi / 2) * phi_sections / phi_sections.max()
@@ -233,12 +221,29 @@ class Molecules:
         rho[sorted_rho_ind] = radial_sections
         self.coords = pol2cart(theta, rho, z)
 
-    def scale_flat_to_inner_partial_toroid(self, r_torus, r_tube):
-        theta, rho, z = cart2pol(self.coords)
-        total_area = (np.pi ** 2) * r_torus * r_tube - 2 * np.pi * (r_tube ** 2)
+    def scale_flat_to_inner_partial_toroid(self, r_torus, r_tube_base, r_tube_withzo):
+        self.center_xy()
+        (theta, rho, z) = cart2pol(self.coords)
+        total_area = (np.pi ** 2) * r_torus * r_tube_withzo - 2 * np.pi * (r_tube_withzo ** 2)
         areas = np.linspace(0, total_area, self.coords.shape[0])
+        phi_sections = np.array([inner_toroid_angle_from_area(r_torus, r_tube_withzo, area) for area in areas])
+        radial_sections = (r_torus - r_tube_base) + (r_tube_base * np.pi / 2) * phi_sections / phi_sections.max()
+        sorted_rho_ind = np.argsort(rho)
+        rho[sorted_rho_ind] = radial_sections
+        self.coords = pol2cart(theta, rho, z)
 
-    # -------------------------------------------------------------------------
+    def scale_flat_to_outer_partial_toroid(self, r_torus, r_tube_base, r_tube_withzo):
+        self.center_xy()
+        (theta, rho, z) = cart2pol(self.coords)
+        total_area = (np.pi ** 2) * r_torus * r_tube_withzo + 2 * np.pi * (r_tube_withzo ** 2)
+        areas = np.linspace(0, total_area, self.coords.shape[0])
+        phi_sections = np.array([outer_toroid_angle_from_area(r_torus, r_tube_withzo, area) for area in areas])
+        radial_sections = r_torus + (r_tube_base * np.pi / 2) * phi_sections / phi_sections.max()
+        sorted_rho_ind = np.argsort(rho)
+        rho[sorted_rho_ind] = radial_sections
+        self.coords = pol2cart(theta, rho, z)
+
+    # ---------------------------   ----------------------------------------------
     # Calculate and superficially change dataset properties
     # -------------------------------------------------------------------------
 
@@ -269,7 +274,6 @@ class Molecules:
                     top_min.append(self.coords[i:i + self.metadata.ressize[i], 2].min())
                 else:
                     bot_max.append(self.coords[i:i + self.metadata.ressize[i], 2].max())
-
         elif method == 'first_nparts':
             if not nparts:
                 nparts = [np.sum((self.metadata.leaflets == 1) & (self.metadata.ressize > 0)),  # default 1 per residue
@@ -710,24 +714,19 @@ class shapes:
         def gen_shape(template_bilayer, zo, r_sphere, r_hole=0, cutoff_method='com', print_intermediates=False):
             ''' returns molecules instance of semisphere'''
             # calculating slice radii
-            slice_radius = np.pi * r_sphere / 2
             top_slice_radius = np.sqrt(2) * (r_sphere + zo[0])
             bot_slice_radius = np.sqrt(2) * (r_sphere - zo[1])
             slice_origin = np.mean(template_bilayer.coords[:, 0:2], axis=0)
             # calculate slice indices
             bool_in_top_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius, exclude_radius=r_hole)
             bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius, exclude_radius=r_hole)
-
             # make slices
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &  template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
 
             # scale slices to slice_radius
-            top_leaflet.scale_coordinates_radial(slice_radius / top_slice_radius)
-            bot_leaflet.scale_coordinates_radial(slice_radius / bot_slice_radius)
-
-            top_leaflet.scale_flat_to_spherical(r_sphere)
-            bot_leaflet.scale_flat_to_spherical(r_sphere)
+            top_leaflet.scale_flat_to_spherical(r_sphere, r_sphere + zo[0])
+            bot_leaflet.scale_flat_to_spherical(r_sphere, r_sphere - zo[0])
 
             # merge and transform slices
             top_leaflet.append(bot_leaflet)
@@ -799,33 +798,28 @@ class shapes:
             outer_r_tube = r_tube + zo[0]
             inner_r_tube = r_tube - zo[1]
 
-            slice_min       = r_torus - r_tube
-            inner_slice_min = r_torus - inner_r_tube
-            outer_slice_min = r_torus - outer_r_tube
+            slice_min = r_torus - r_tube
 
-            slice_max       = np.sqrt( r_torus ** 2 -  r_tube        ** 2 + r_torus *       r_tube * (np.pi - 2) )
-            inner_slice_max = np.sqrt( r_torus ** 2 - (inner_r_tube) ** 2 + r_torus * inner_r_tube * (np.pi - 2) )
-            outer_slice_max = np.sqrt( r_torus ** 2 - (outer_r_tube) ** 2 + r_torus * outer_r_tube * (np.pi - 2) )
+            inner_slice_max = np.sqrt(slice_min ** 2 + np.pi * inner_r_tube * r_torus - 2 * (inner_r_tube) ** 2)
+            outer_slice_max = np.sqrt(slice_min ** 2 + np.pi * outer_r_tube * r_torus - 2 * (outer_r_tube) ** 2)
 
             slice_origin = np.mean(template_bilayer.coords, axis=0)[0:2]
             # calculate slice indices
-            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max, exclude_radius=outer_slice_min)
-            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max, exclude_radius=inner_slice_min)
-
+            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, outer_slice_max, exclude_radius=slice_min)
+            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, inner_slice_max, exclude_radius=slice_min)
             # difference from sphere, exclude center
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
 
             # scale slices to slice_radius
-            top_leaflet.scale_coordinates_toroidal([outer_slice_min, outer_slice_max], [slice_min, slice_max])
-            bot_leaflet.scale_coordinates_toroidal([inner_slice_min, inner_slice_max], [slice_min, slice_max])
-
+            top_leaflet.scale_flat_to_inner_partial_toroid(r_torus, r_tube, outer_r_tube)
+            bot_leaflet.scale_flat_to_inner_partial_toroid(r_torus, r_tube, inner_r_tube)
             top_leaflet.append(bot_leaflet)
             # check quarter torus, use circular slice to cut off one side or other
             # the cutoff is r_torus. For inner, just take a circle that ends at r_torus
             # for outer, take circle larger than size of torus including everything,
             # then exclude up to r_torus
-            top_leaflet.toroidal_transform(r_torus, r_tube)
+            top_leaflet.inner_toroidal_transform(r_torus, r_tube)
 
             return top_leaflet
 

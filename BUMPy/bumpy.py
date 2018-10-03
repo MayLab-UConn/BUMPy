@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Wed Sep  5 15:53:36 EDT 2018
+    github snapshot from Wed Oct  3 13:34:07 EDT 2018
 '''
 
 import inspect
@@ -1111,6 +1111,39 @@ class shapes:
             cyl.append(junc1)
             cyl.append(junc2)
             return cyl
+
+    class buckle(shape):
+        @staticmethod
+        def dimension_requirements(r_buckle, l_buckle):
+            return shapes.cylinder.dimension_requirements(r_buckle, l_buckle, completeness=0.5)
+
+        @staticmethod
+        def final_dimensions(r_buckle, l_buckle, buff=50):
+            return np.array([l_buckle, 4 * r_buckle, 2 * r_buckle + buff])
+
+        @staticmethod
+        def gen_shape(template_bilayer, zo, r_buckle, l_buckle):
+            semicyl   = shapes.cylinder.gen_shape(template_bilayer, zo, r_buckle, l_buckle, completeness=0.5)
+
+            template_2 = deepcopy(template_bilayer)
+            template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
+            template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
+
+            junction  = shapes.cylinder.gen_shape(template_2, zo, r_buckle, l_buckle, completeness=0.25)
+            junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
+            junction2 = deepcopy(junction)
+
+            # rotations and translations. 135 and 225 degrees gets junctions rotated so that they max at 0 and taper to
+            # flat in the y direction translation because they face the wrong direction and may not match cylinder
+            # directions anyway
+            junction.rotate([135, 0, 0])
+            junction.translate([0, -(2 * r_buckle), 0])
+            junction2.rotate([225, 0, 0])
+            junction2.translate([0, 2 * r_buckle, 0])
+
+            semicyl.append(junction)
+            semicyl.append(junction2)
+            return semicyl
 
 
 def parse_command_lines():

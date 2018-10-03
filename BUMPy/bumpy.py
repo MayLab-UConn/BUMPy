@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Wed Oct  3 13:34:07 EDT 2018
+    github snapshot from Wed Oct  3 16:41:28 EDT 2018
 '''
 
 import inspect
@@ -235,7 +235,7 @@ class Molecules:
         phi_sections = np.arccos(1 - (areas / total_area))
         radial_sections = radius * (np.pi / 2) * phi_sections / phi_sections.max()
         sorted_rho_ind = np.argsort(rho)
-        rho[sorted_rho_ind] = radial_sections
+        rho[sorted_rho_ind] = radial_sections.squeeze()
         self.coords = pol2cart(theta, rho, z)
 
     def scale_flat_to_inner_partial_toroid(self, r_torus, r_tube_base, r_tube_withzo):
@@ -246,7 +246,7 @@ class Molecules:
         phi_sections = np.array([inner_toroid_angle_from_area(r_torus, r_tube_withzo, area) for area in areas])
         radial_sections = (r_torus - r_tube_base) + (r_tube_base * np.pi / 2) * phi_sections / phi_sections.max()
         sorted_rho_ind = np.argsort(rho)
-        rho[sorted_rho_ind] = radial_sections
+        rho[sorted_rho_ind] = radial_sections.squeeze()
         self.coords = pol2cart(theta, rho, z)
 
     def scale_flat_to_outer_partial_toroid(self, r_torus, r_tube_base, r_tube_withzo):
@@ -257,7 +257,7 @@ class Molecules:
         phi_sections = np.array([outer_toroid_angle_from_area(r_torus, r_tube_withzo, area) for area in areas])
         radial_sections = r_torus + (r_tube_base * np.pi / 2) * phi_sections / phi_sections.max()
         sorted_rho_ind = np.argsort(rho)
-        rho[sorted_rho_ind] = radial_sections
+        rho[sorted_rho_ind] = radial_sections.squeeze()
         self.coords = pol2cart(theta, rho, z)
 
     # ---------------------------   ----------------------------------------------

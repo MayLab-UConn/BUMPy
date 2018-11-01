@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Wed Oct  3 16:41:28 EDT 2018
+    github snapshot from Thu Nov  1 15:38:28 EDT 2018
 '''
 
 import inspect
@@ -1168,7 +1168,7 @@ def parse_command_lines():
     # mandatory input
     required_inputs.add_argument('-s', help='Shape to make - see manual for a list of shapes', metavar='')
     required_inputs.add_argument('-f', help='Flat bilayer template to be used as a template',  metavar='')
-    required_inputs.add_argument('-z', metavar='', help='Location of the pivotal plane (nm). Just one value, or' +
+    required_inputs.add_argument('-z', metavar='', help='Location of the pivotal plane (angstroms). Just one value, or' +
                                                         'outer_zo:inner_zo')
 
     # geometry

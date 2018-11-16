@@ -66,8 +66,8 @@ couple-intramol          = yes
 ```
 Please note that the use of soft-core potentials slows down minimization by about an order of magnitude. We therefore suggest
 a brief (~50 step) minimization using soft-core potentials, followed by a typical minimization without soft-core potentials. We
-have found that every system we've created in BUMPy can be sucessfully minimized with these techniques, so please do let us know
-if you come across a usage case where soft-core potentials are not sufficent!
+have found that every system we've created in BUMPy can be successfully minimized with these techniques, so please do let us know
+if you come across a usage case where soft-core potentials are not sufficient!
 
 ### DEVELOPMENT
 * BUMPy is maintained on github (link: https://github.com/MayLab-UConn/BUMPy)
@@ -83,7 +83,6 @@ Known bugs:
 #### Input bilayer
 * Templates used as starting structures for BUMPy need to contain WHOLE lipid molecules (ie - not broken across periodic boundaries)
 * Template bilayers do NOT need to be large enough to wrap the flat bilayer into the desired shape; BUMPy will multiply the input laterally to create a flat bilayer of sufficient size. This does mean that the original box dimensions need to be correctly set
-
 #### Shapes
 * All shapes are contained in the shapes class. The requirements for adding a shape to the repository are described in the shapes documentation
 * Descriptions of supported shapes can be found in the shapes.pdf document. Note that for some shapes the terms "inner" and "outer" leaflets are ambiguous, so for those shapes a convention of "inner" and "outer" was chosen and is listed in the document. This convention does not change any of the pivotal-plane calculations.

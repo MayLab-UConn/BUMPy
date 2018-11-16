@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Thu Nov  1 15:38:28 EDT 2018
+    github snapshot from Fri Nov 16 12:42:19 EST 2018
 '''
 
 import inspect
@@ -42,13 +42,6 @@ def pol2cart(theta, rho, z):
     y = rho * np.sin(theta)
     cart_coords = np.stack((x, y, z), axis=1)
     return cart_coords
-
-
-def sin_approximation(theta):
-    'Macluarin expansion of sine function to 5 terms. Theta in radians'
-    def taylor_factorial(a, n):
-        return (a ** n) / np.math.factorial(n)
-    return theta - taylor_factorial(theta, 3) + taylor_factorial(theta, 5) - taylor_factorial(theta, 7) + taylor_factorial(theta, 9)
 
 
 def inner_toroid_angle_from_area(r_torus, r_tube, area):

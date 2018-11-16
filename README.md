@@ -45,6 +45,30 @@ z values and flat bilayer properties (and we've tried). See our publication for 
 * If you absolutely need rigorous area matching, and the z value of the lipid you want to simulate hasn't been calculated yet,
 you can do it yourself! See our publication and cite the authors who came up with the z measurement- (Wang and Deserno, J. Chem. Phys. 16, 164109 (2015)). If you do calculate your own pivotal planes, please let us know and we'll update our repository with your reported values!
 
+### Equilibration of BUMPy systems
+By mixing and matching different building block shapes, the potential arises for clashes at shape interfaces, which can
+(and typically does) lead to non-finite forces during energy minimization. To allow minimization to proceed, we use soft-core
+potentials to scale down short-range nonbonded interactions. If you are using Gromacs, the following .mdp snippet (taken from the CHARMM-GUI's
+suggested minimization scheme) can be used - just paste it into a typical minimization script, and minimization should work.
+```
+free-energy              = yes
+init-lambda              = 0.01
+sc-alpha                 = 4
+sc-power                 = 2
+sc-coul                  = yes
+nstdhdl                  = 0
+couple-moltype           = system
+; we are changing both the vdw and the charge. In the initial state, both are on
+couple-lambda0           = vdw-q
+; in the final state, both are off.
+couple-lambda1           = none
+couple-intramol          = yes
+```
+Please note that the use of soft-core potentials slows down minimization by about an order of magnitude. We therefore suggest
+a brief (~50 step) minimization using soft-core potentials, followed by a typical minimization without soft-core potentials. We
+have found that every system we've created in BUMPy can be sucessfully minimized with these techniques, so please do let us know
+if you come across a usage case where soft-core potentials are not sufficent!
+
 ### DEVELOPMENT
 * BUMPy is maintained on github (link: https://github.com/MayLab-UConn/BUMPy)
 * I'll happily accept code contributions to improve the tool or add shapes to the repository.

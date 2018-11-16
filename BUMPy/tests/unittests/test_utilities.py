@@ -82,3 +82,7 @@ class test_outer_toroid_angle_from_area(unittest.TestCase):
         A_quarter_torus_outer = (np.pi ** 2) * r_torus * r_tube + 2 * np.pi * (r_tube ** 2)
         self.assertEqual(0, outer_toroid_angle_from_area(r_torus, r_tube, 0))
         self.assertAlmostEqual(np.pi / 2, outer_toroid_angle_from_area(r_torus, r_tube, A_quarter_torus_outer)[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

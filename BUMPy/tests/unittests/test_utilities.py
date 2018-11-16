@@ -65,9 +65,20 @@ class test_pol2cart(unittest.TestCase):
         self.assertAlmostEqual(cartcoords[1, 0], -10)
         self.assertAlmostEqual(cartcoords[1, 1], 0)
 
-class test_inner_toroid_angle_from_area(unittest.TestCase):
-    pass
-
 
 class test_inner_toroid_angle_from_area(unittest.TestCase):
-    pass
+    def test_edge_cases(self):
+        r_torus = 20
+        r_tube = 10
+        A_quarter_torus_inner = (np.pi ** 2) * r_torus * r_tube - 2 * np.pi * (r_tube ** 2)
+        self.assertEqual(0, inner_toroid_angle_from_area(r_torus, r_tube, 0))
+        self.assertAlmostEqual(np.pi / 2, inner_toroid_angle_from_area(r_torus, r_tube, A_quarter_torus_inner)[0])
+
+
+class test_outer_toroid_angle_from_area(unittest.TestCase):
+    def test_edge_cases(self):
+        r_torus = 20
+        r_tube = 10
+        A_quarter_torus_outer = (np.pi ** 2) * r_torus * r_tube + 2 * np.pi * (r_tube ** 2)
+        self.assertEqual(0, outer_toroid_angle_from_area(r_torus, r_tube, 0))
+        self.assertAlmostEqual(np.pi / 2, outer_toroid_angle_from_area(r_torus, r_tube, A_quarter_torus_outer)[0])

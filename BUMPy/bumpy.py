@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Fri Nov 16 12:42:19 EST 2018
+    github snapshot from Fri Nov 16 17:13:09 EST 2018
 '''
 
 import inspect
@@ -52,7 +52,7 @@ def inner_toroid_angle_from_area(r_torus, r_tube, area):
 
 
 def outer_toroid_angle_from_area(r_torus, r_tube, area):
-    ''' Numerically solves for the angle corresponding to a sliced inner torus with given dimensions and area'''
+    ''' Numerically solves for the angle corresponding to a sliced outer torus with given dimensions and area'''
     def toroid_area(theta):
         return 2 * np.pi * r_torus * r_tube * theta + 2 * np.pi * r_tube * r_tube * np.sin(theta) - area
     return fsolve(toroid_area, 0)
@@ -70,10 +70,10 @@ class Metadata:
     '''
 
     def __init__(self, atomname=[], resname=[], leaflets=[], ressize=[]):
-        self.atomname = atomname
-        self.resname  = resname
-        self.leaflets = leaflets
-        self.ressize  = ressize
+        self.atomname = atomname.flatten()
+        self.resname  = resname.flatten()
+        self.leaflets = leaflets.flatten()
+        self.ressize  = ressize.flatten()
 
     def append(self, other):
         self.atomname = np.concatenate((self.atomname, other.atomname))

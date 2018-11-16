@@ -1,10 +1,12 @@
 import unittest
 import numpy as np
-import sys, os
+import sys
+import os
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
 
 from bumpy import cart2pol, pol2cart, inner_toroid_angle_from_area, outer_toroid_angle_from_area
+
 
 class test_cart2pol(unittest.TestCase):
 
@@ -30,15 +32,42 @@ class test_cart2pol(unittest.TestCase):
         self.assertAlmostEqual(theta[2], np.pi)
         self.assertAlmostEqual(theta[3], - np.pi / 2)  # goes negative after pi
 
+
 class test_pol2cart(unittest.TestCase):
     def test_output_shape(self):
-        pass
+        nparts = 20
+        theta = rho = z = np.zeros(nparts)
+        cartcoords = pol2cart(theta, rho, z)
+        self.assertEqual(cartcoords.shape, (nparts, 3))
 
     def test_output_values(self):
-        pass
+        rho = np.array((0, 1, 10))
+        theta = np.array((0, np.pi / 2, -np.pi))
+        z = np.array((-5, 0, 10))
+        cartcoords = pol2cart(theta, rho, z)
+        # test simple cases
+        self.assertEqual(      cartcoords[0, 0],   0)
+        self.assertEqual(      cartcoords[0, 1],   0)
+        self.assertEqual(      cartcoords[0, 2],  -5)
+        self.assertAlmostEqual(cartcoords[1, 0],   0)
+        self.assertAlmostEqual(cartcoords[1, 1],   1)
+        self.assertAlmostEqual(cartcoords[1, 2],   0)
+        self.assertAlmostEqual(cartcoords[2, 0], -10)
+        self.assertAlmostEqual(cartcoords[2, 1],   0)
+        self.assertAlmostEqual(cartcoords[2, 2],  10)
+        # test intermediate cases - split xy, and gt 2pi
+        rho   = np.array([10, 10])
+        theta = np.array([np.pi / 4, 3 * np.pi])
+        z     = np.zeros(2)
+        cartcoords = pol2cart(theta, rho, z)
+        self.assertAlmostEqual(cartcoords[0, 0], 10 / np.sqrt(2))
+        self.assertAlmostEqual(cartcoords[0, 1], 10 / np.sqrt(2))
+        self.assertAlmostEqual(cartcoords[1, 0], -10)
+        self.assertAlmostEqual(cartcoords[1, 1], 0)
 
 class test_inner_toroid_angle_from_area(unittest.TestCase):
     pass
+
 
 class test_inner_toroid_angle_from_area(unittest.TestCase):
     pass

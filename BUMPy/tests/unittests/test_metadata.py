@@ -33,10 +33,19 @@ class test_Metadata(unittest.TestCase):
         self.assertTrue(np.alltrue(self.metadata.ressize ==  np.array((1, 2, 0, 1))))
 
     def test_duplicate(self):
-        pass
+        self.metadata.duplicate(2)
+        self.assertTrue(np.alltrue(self.metadata.atomname == np.array(("A1", "A2", "A3", "A4", "A1", "A2", "A3", "A4"), dtype="<U4")))
+        self.assertTrue(np.alltrue(self.metadata.resname  == np.array(("R1", "R2", "R2", "R3", "R1", "R2", "R2", "R3"), dtype="<U4")))
+        self.assertTrue(np.alltrue(self.metadata.leaflets == np.array((0, 1, 1, 1, 0, 1, 1, 1))))
+        self.assertTrue(np.alltrue(self.metadata.ressize ==  np.array((1, 2, 0, 1, 1, 2, 0, 1))))
 
     def test_slice(self):
-        pass
+        # TODO warn on empty slice - happens a lot with code errors
+        newMeta = self.metadata.slice((np.array([1, 3])))
+        self.assertTrue(np.alltrue(newMeta.atomname == np.array(("A2", "A4"), dtype="<U4")))
+        self.assertTrue(np.alltrue(newMeta.resname  == np.array(("R2", "R3"), dtype="<U4")))
+        self.assertTrue(np.alltrue(newMeta.leaflets == np.array((1, 1))))
+        self.assertTrue(np.alltrue(newMeta.ressize  == np.array((2, 1))))
 
 
 if __name__ == "__main__":

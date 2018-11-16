@@ -1,7 +1,6 @@
 BUMPy/debugging/**
 BUMPy/*.gro
 __pycache__
-BUMPy/tests/**/test*
 
 *.tpr
 *.trr

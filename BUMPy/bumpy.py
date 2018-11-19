@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Mon Nov 19 10:38:26 EST 2018
+    github snapshot from Mon Nov 19 12:44:03 EST 2018
 '''
 
 import inspect
@@ -78,7 +78,7 @@ class Metadata:
         Supports appending, duplication, slicing, and reordering operations
     '''
 
-    def __init__(self, atomname=[], resname=[], leaflets=[], ressize=[]):
+    def __init__(self, atomname=np.empty(0), resname=np.empty(0), leaflets=np.empty(0), ressize=np.empty(0)):
         self.atomname = atomname.flatten()
         self.resname  = resname.flatten()
         self.leaflets = leaflets.flatten()
@@ -559,7 +559,7 @@ class Molecules:
                 resid = np.mod(resid, 100000)    # 99,999 max for gro
                 atomno = np.mod(np.arange(1, nparts + 1), 100000)
                 for startind, stopind in zip(chunks[:-1], chunks[1:]):
-                    fout.writelines(["{:5d}{:>5s}{:5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
+                    fout.writelines(["{:5d}{:5s}{:>5s}{:5d}{:8.3f}{:8.3f}{:8.3f}\n".format(
                                     i[0], i[1], i[2], i[3], i[4], i[5], i[6]) for i in zip(
                                     resid[startind:stopind],    # noqa
                                     self.metadata.resname[startind:stopind],

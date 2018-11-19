@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Mon Nov 19 12:44:03 EST 2018
+    github snapshot from Mon Nov 19 14:48:35 EST 2018
 '''
 
 import inspect
@@ -623,6 +623,9 @@ class Molecules:
 
         '''
         def write_index_unit(print_obj, name, indices):
+            if len(indices) < 1:
+                return
+
             print_obj.write("[ {:s} ]\n".format(name))
             count = 1
             for i in indices:
@@ -636,7 +639,7 @@ class Molecules:
         with open(outfile, 'w') as fout:
             top_atomno = np.where((self.metadata.leaflets == 1) & (self.metadata.resname != dummy_name))[0] + 1
             bot_atomno = np.where((self.metadata.leaflets == 0) & (self.metadata.resname != dummy_name))[0] + 1
-            write_index_unit(fout, "system", np.arange(1, self.coords.shape[0] + 1))
+            write_index_unit(fout, "system", np.arange(1, self.metadata.leaflets.size + 1))
             write_index_unit(fout, "top_leaflet", top_atomno)
             write_index_unit(fout, "bot_leaflet", bot_atomno)
 

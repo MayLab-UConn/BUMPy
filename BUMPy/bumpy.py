@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Mon Nov 19 10:17:07 EST 2018
+    github snapshot from Mon Nov 19 10:38:26 EST 2018
 '''
 
 import inspect
@@ -11,15 +11,24 @@ import sys
 from argparse import ArgumentParser
 from time import time
 from copy import deepcopy
-from scipy.optimize import fsolve
 
-# The two main requirements of bumpy are that the python interpreter is v3, and that numpy is installed.
+# The  main requirements of bumpy are:
+#  - v3 python interpreter
+#  - numpy
+#  - scipy
 # Exit if otherwise
 try:
     import numpy as np
 except ImportError:
     print("numpy does not appear to be installed, cannot run script")
     sys.exit()
+
+try:
+    from scipy.optimize import fsolve
+except ImportError:
+    print("scipy does not appear to be installed, cannot run script")
+    sys.exit()
+
 if sys.version_info[0] == 2:
     print("You are using python version 2, you must use python v3 for this script, exiting")
     sys.exit()

@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Fri Nov 16 17:13:09 EST 2018
+    github snapshot from Mon Nov 19 10:17:07 EST 2018
 '''
 
 import inspect
@@ -128,6 +128,8 @@ class Molecules:
     # Geometric transformations
     # -----------------------------------------------------------------------------------------
 
+    # TODO : Some of these functions shouldn't be part of the class. It's convenient to be able to
+    # do e.g. system.rotate(), but that can wrap a call to an external function
     def center_xy(self):
         self.coords[:, 0:2] -= self.coords.mean(axis=0)[0:2]
 
@@ -410,6 +412,8 @@ class Molecules:
     def read_input(self, filein, fmt='pdb', reorganize=False, ignore=[]):
         '''Read input pdb or gro. .gro files are free format, which is tricky for reading if fields are missing or
            don't have whitespace (ie as occurs in manual format between resnumber and resname).
+
+           TODO: Check argument sanity
         '''
         with open(filein, "r") as fid:
 
@@ -501,7 +505,9 @@ class Molecules:
 
     def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None, dummy_name=None,
                           chunksize=100000):
-
+        ''' TODO: Document
+            TODO: check output file writability - general utility for file writing
+        '''
         if reorder:
             self.reorder_by_leaflet()
             self.reorder_within_leaflet()
@@ -1201,6 +1207,8 @@ def parse_command_lines():
 def gen_dummy_grid(lateral_distance=5, thickness=50, atomname='DUMY', resname='DUMY'):
     ''' Creates a  10 * 10 * 2 grid of dummy particles, with two sheet separated by thickness and
         inter-particle distances separated by lateral distance
+
+        TODO: Argument sanity checks
     '''
     coords = np.array(np.meshgrid(np.arange(10) * lateral_distance, np.arange(10) * lateral_distance,
                                   [ -thickness / 2, thickness / 2])).T.reshape(-1, 3)   # thanks @pv, stackoverflow

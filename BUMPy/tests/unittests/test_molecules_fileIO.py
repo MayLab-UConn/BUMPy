@@ -5,7 +5,8 @@ import os
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
 
-from bumpy import Molecules
+from bumpy import Molecules, Metadata
+from testutils import PDBComp, GROComp
 referenceFilePath = "reference_files/test_molecules_fileIO/"
 
 
@@ -55,6 +56,7 @@ class test_read_input(unittest.TestCase):
         self.assertEqual(testMolecule.metadata.resname[1], "MOLA")
         self.assertEqual(testMolecule.metadata.resname[2], "MOLB")
 
+        # TODO: test resnums
     def test_ignore_resnames(self):
         inputPDBPath = referenceFilePath + "read_pdb.pdb"
         testMolecule = Molecules(infile=inputPDBPath, ignore="MOLB")
@@ -73,17 +75,46 @@ class test_read_input(unittest.TestCase):
 
 class test_write_coordinates(unittest.TestCase):
 
+    def setUp(self):
+        ''' Sets up a molecule with equivalent fields to the reference files used for reading tests. Not just
+            loading a molecule directly from file because if the reading gets broken then the writing tests would
+            likely break too
+        '''
+        metadata = Metadata(atomname=np.array(("A", "B", "A"), dtype="<U4"),
+                            resname=np.array(("MOLA", "MOLA", "MOLB"), dtype="<U4"),
+                            ressize=np.array((2, 0, 1)))
+        coords = np.array([[0.000, -5.000, 0.500],
+                           [5.000, -10.000, 0.600],
+                           [10.000, -20.000, 0.700]])
+        boxdims = np.array([100, 100, 80])
+        self.simple_system = Molecules(metadata=metadata, coords=coords, boxdims=boxdims)
+
+    def tearDown(self):
+        ''' Removes temporary files generated during output tests '''
+
+        written_test_files = ["test_write_simple.pdb", "test_write_simple.gro"]
+        for file in written_test_files:
+            if os.path.exists(file):
+                os.remove(file)
+
     def test_output_file_availability(self):
         # do once functionality in place
         pass
 
     def test_write_pdb(self):
-        pass
+        ''' Want exact match with reference PDB, turn off position changing'''
+        temporaryOutputPath = "test_write_simple2.pdb"
+        self.simple_system.write_coordinates(temporaryOutputPath, position=False, reorder=False)
+        self.assertTrue(PDBComp.compareAtomFields(temporaryOutputPath, referenceFilePath + "read_pdb.pdb"))
 
     def test_write_gro(self):
-        pass
+        ''' Want exact match with reference GRO, turn off position changing'''
+        temporaryOutputPath = "test_write_simple.gro"
+        self.simple_system.write_coordinates("test_write_simple.gro", position=False, reorder=False)
+        self.assertTrue(GROComp.compareAtomFields(temporaryOutputPath, referenceFilePath + "read_gro.gro"))
 
     def test_write_header(self):
+        ''' Tests that the input commands are written to pdb and gro files '''
         pass
 
     def test_position_shifter(self):
@@ -101,3 +132,7 @@ class test_write_topology(unittest.TestCase):
 
 class test_write_index(unittest.TestCase):
     pass
+
+
+if __name__ == "__main__":
+    unittest.main()

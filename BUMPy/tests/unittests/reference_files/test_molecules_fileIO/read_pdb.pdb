@@ -2,4 +2,4 @@ TITLE     Sample for pdb reading tests
 CRYST1  100.000  100.000   80.000  90.00  90.00  90.00 P 1           1
 ATOM      1    A MOLA    1       0.000  -5.000   0.500  1.00  0.00            
 ATOM      2    B MOLA    1       5.000 -10.000   0.600  1.00  0.00            
-ATOM      3    A MOLB    1      10.000 -20.000   0.700  1.00  0.00  
+ATOM      3    A MOLB    2      10.000 -20.000   0.700  1.00  0.00  

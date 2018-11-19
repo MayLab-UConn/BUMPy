@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import sys
 import os
+import filecmp
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
 
@@ -97,13 +98,9 @@ class test_write_coordinates(unittest.TestCase):
             if os.path.exists(file):
                 os.remove(file)
 
-    def test_output_file_availability(self):
-        # do once functionality in place
-        pass
-
     def test_write_pdb(self):
         ''' Want exact match with reference PDB, turn off position changing'''
-        temporaryOutputPath = "test_write_simple2.pdb"
+        temporaryOutputPath = "test_write_simple.pdb"
         self.simple_system.write_coordinates(temporaryOutputPath, position=False, reorder=False)
         self.assertTrue(PDBComp.compareAtomFields(temporaryOutputPath, referenceFilePath + "read_pdb.pdb"))
 
@@ -113,26 +110,61 @@ class test_write_coordinates(unittest.TestCase):
         self.simple_system.write_coordinates("test_write_simple.gro", position=False, reorder=False)
         self.assertTrue(GROComp.compareAtomFields(temporaryOutputPath, referenceFilePath + "read_gro.gro"))
 
-    def test_write_header(self):
-        ''' Tests that the input commands are written to pdb and gro files '''
-        pass
-
-    def test_position_shifter(self):
-        pass
-
 
 class test_write_topology(unittest.TestCase):
 
-    def test_basic_functionality(self):
-        pass
+    def setUp(self):
+        metadata = Metadata(atomname=np.array(("A", "A", "B", "B"), dtype="<U4"),
+                            resname=np.array(("MOLA", "MOLA", "MOLB", "MOLB"), dtype="<U4"),
+                            ressize=np.array((1, 1, 2, 0)))
+        self.simple_system = Molecules(metadata=metadata)
 
-    def test_multiple_molecule_types(self):
-        pass
+    def tearDown(self):
+        ''' Removes temporary files generated during output tests '''
+
+        written_test_files = ["test_write_simple.top"]
+        for file in written_test_files:
+            if os.path.exists(file):
+                os.remove(file)
+
+    def test_basic_functionality(self):
+        temporaryOutputPath = "test_write_simple.top"
+        self.simple_system.write_topology(temporaryOutputPath)
+        self.assertTrue(filecmp.cmp(temporaryOutputPath, referenceFilePath + "reference_basic_top.top"))
 
 
 class test_write_index(unittest.TestCase):
-    pass
 
+    def setUp(self):
+        metadata = Metadata(atomname=np.array(("A", "A", "B", "B"), dtype="<U4"),
+                            resname=np.array(("MOLA", "MOLA", "MOLB", "MOLB"), dtype="<U4"),
+                            leaflets=np.array((0, 1, 1, 1)),
+                            ressize=np.array((1, 1, 2, 0)))
+        self.simple_system = Molecules(metadata=metadata)
+
+    def tearDown(self):
+        written_test_files = ["test_write_simple.ndx", "test_write_top_leaflet_only.ndx",
+                              "test_write_molB_as_dummy.ndx"]
+        for file in written_test_files:
+            if os.path.exists(file):
+                os.remove(file)
+
+    def test_writes_fields(self):
+        temporaryOutputPath = "test_write_simple.ndx"
+        self.simple_system.write_index(temporaryOutputPath)
+        self.assertTrue(filecmp.cmp(temporaryOutputPath, referenceFilePath + "reference_basic_index.ndx"))
+
+    def test_handles_zero_indices(self):
+        temporaryOutputPath = "test_write_top_leaflet_only.ndx"
+        self.simple_system.metadata.leaflets = np.array((1, 1, 1, 1))
+        self.simple_system.write_index(temporaryOutputPath)
+        self.assertTrue(filecmp.cmp(temporaryOutputPath, referenceFilePath + "reference_top_index_only.ndx"))
+
+    def test_writes_dummy_particles(self):
+        # In this case, we'll just treat MOL B as a dummy particle
+        temporaryOutputPath = "test_write_molB_as_dummy.ndx"
+        self.simple_system.write_index(temporaryOutputPath, dummy_name="MOLB")
+        self.assertTrue(filecmp.cmp(temporaryOutputPath, referenceFilePath + "reference_dummy_index.ndx"))
 
 if __name__ == "__main__":
     unittest.main()

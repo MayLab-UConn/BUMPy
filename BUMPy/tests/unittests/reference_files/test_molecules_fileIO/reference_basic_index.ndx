@@ -1,0 +1,18 @@
+[ system ]
+1 2 3 4 
+
+[ top_leaflet ]
+2 3 4 
+
+[ bot_leaflet ]
+1 
+
+[ top_MOLA ]
+2 
+
+[ bot_MOLA ]
+1 
+
+[ top_MOLB ]
+3 4 
+

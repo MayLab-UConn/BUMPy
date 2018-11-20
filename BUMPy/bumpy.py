@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Mon Nov 19 14:48:35 EST 2018
+    github snapshot from Tue Nov 20 10:25:59 EST 2018
 '''
 
 import inspect
@@ -1242,6 +1242,16 @@ def check_argument_sanity():
     pass
 
 
+def list_shapes():
+    print('Shapes in repository, with listed arguments:\n')
+    for shape in inspect.getmembers(shapes):
+        if (not shape[0].startswith('_')) and  (shape[0] != 'shape'):
+            print('{:s}'.format(shape[0]))
+            sig = inspect.signature(shape[1].gen_shape)
+            for param in sig.parameters.values():
+                if param.default == param.empty and param.name != 'zo' and param.name != 'template_bilayer':
+                    print('    {:s}'.format(param.name))
+
 # -----------------------------------------------------------------------------
 # Command line start
 # -----------------------------------------------------------------------------
@@ -1251,14 +1261,7 @@ def main():
     display_parameters(args)  # show user what they selected - not yet implemented
 
     if args.list:
-        print('Shapes in repository, with listed arguments:\n')
-        for shape in inspect.getmembers(shapes):
-            if (not shape[0].startswith('_')) and  (shape[0] != 'shape'):
-                print('{:s}'.format(shape[0]))
-                sig = inspect.signature(shape[1].gen_shape)
-                for param in sig.parameters.values():
-                    if param.default == param.empty and param.name != 'zo' and param.name != 'template_bilayer':
-                        print('    {:s}'.format(param.name))
+        list_shapes()
         exit()
 
     # parse arguments

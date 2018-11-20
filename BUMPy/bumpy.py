@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Tue Nov 20 16:20:18 EST 2018
+    github snapshot from Tue Nov 20 16:45:51 EST 2018
 '''
 
 import inspect
@@ -1307,6 +1307,12 @@ def check_argument_sanity(args):
     for option in (args.o, args.p, args.n):
         if option:
             fileCanBeOpenedForWriting(option)
+
+    # check geometric arguments
+    try:
+        args.g
+    except AttributeError:
+        fatal_error("Geometry field -g was not specified. Please specify geometry. For example, ./bumpy -s sphere -g r_sphere:100")
 
     # warn if zo is not set
     if not args.z:

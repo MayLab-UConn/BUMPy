@@ -21,7 +21,7 @@ class test_argument_sanity_checker_input_output(unittest.TestCase):
         self.validArgs.s = "sphere"
         self.validArgs.f = "reference_files/test_user_interface/reference.pdb"
         self.validArgs.z = "10"
-        self.validArgs.g = "r_sphere:10"
+        self.validArgs.g = "r_sphere:100"
         self.validArgs.o = "argument_check_output.pdb"
         self.validArgs.p = None
         self.validArgs.n = None
@@ -101,8 +101,9 @@ class test_argument_sanity_checker_zo(unittest.TestCase):
         self.invalidArgs.f = "reference_files/test_user_interface/reference.pdb"
         self.invalidArgs.z = None
         self.invalidArgs.o = "output.pdb"
-        self.invalidArgs.n = None
         self.invalidArgs.p = None
+        self.invalidArgs.n = None
+        self.invalidArgs.g = "r_sphere:100"
 
         # redirect stdout for text checking
         self.stdout = stdout_checker()
@@ -149,6 +150,34 @@ class test_argument_sanity_checker_zo(unittest.TestCase):
             check_argument_sanity(self.invalidArgs)
         self.assertEqual('your input of "a" for zo could not be converted to a floating point number\n', str(self.stdout))
 
+
+class test_argument_sanity_geometry(unittest.TestCase):
+
+    def setUp(self):
+        self.invalidArgs = emptyArgs()
+        self.invalidArgs.s = "sphere"
+        self.invalidArgs.f = "reference_files/test_user_interface/reference.pdb"
+        self.invalidArgs.z = "10"
+        self.invalidArgs.o = "output.pdb"
+        self.invalidArgs.p = None
+        self.invalidArgs.n = None
+
+        # redirect stdout for text checking
+        self.stdout = stdout_checker()
+        self.stored_stdout = sys.stdout
+        sys.stdout = self.stdout
+
+    def tearDown(self):
+        sys.stdout = self.stored_stdout
+        written_test_files = ["output.pdb"]
+        for file in written_test_files:
+            if os.path.exists(file):
+                os.remove(file)
+
+    def test_no_g_option(self):
+        with self.assertRaises(SystemExit):
+            check_argument_sanity(self.invalidArgs)
+        self.assertEqual("Geometry field -g was not specified. Please specify geometry. For example, ./bumpy -s sphere -g r_sphere:100\n", str(self.stdout))
 
 class test_display_parameters(unittest.TestCase):
     pass

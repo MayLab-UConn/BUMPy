@@ -62,3 +62,16 @@ class GROComp:
                 if line1 != line2:
                     return False
         return True
+
+
+# class that stdout is redirected to. Modified from
+# http://pragmaticpython.com/2017/03/23/unittesting-print-statements/
+class stdout_checker:
+    def __init__(self):
+        self.data = []
+
+    def write(self, string):
+        self.data.append(string)
+
+    def __str__(self):
+        return "".join(self.data)

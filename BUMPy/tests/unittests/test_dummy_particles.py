@@ -25,7 +25,6 @@ class test_dummy_grid_generation(unittest.TestCase):
         self.assertTrue(np.all(grid.coords[:100, 2] == -25))
         self.assertTrue(np.all(grid.coords[100:, 2] ==  25))
 
-
     # TODO : populate once written in main code
     def test_argument_sanity_check(self):
         pass

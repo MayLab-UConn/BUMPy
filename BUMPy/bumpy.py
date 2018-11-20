@@ -3,11 +3,12 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Tue Nov 20 10:25:59 EST 2018
+    github snapshot from Tue Nov 20 12:40:16 EST 2018
 '''
 
 import inspect
 import sys
+import os
 from argparse import ArgumentParser
 from time import time
 from copy import deepcopy
@@ -683,6 +684,8 @@ class shapes:
 
             For the first 2 functions, the geometric arguments are passed in as inputs. For the last one, the correct
             and necessary order is template_bilayer, zo, then geometric arguments
+
+            TODO : Add restrictions function. Can default to none in base case, so that it's always queryable
     '''
 
     class shape:
@@ -1238,8 +1241,67 @@ def display_parameters(cl_args):
     pass
 
 
-def check_argument_sanity():
-    pass
+def fatal_error(message):
+    print(message)
+    sys.exit(1)
+
+
+def fileExists(file):
+    return os.path.exists(file)
+
+
+def fileCanBeOpenedForReading(file):
+    ''' Could use an os check, but it apparently doesn't catch everything '''
+    try:
+        with open(file, 'r'):
+            pass
+    except IOError:
+        fatal_error("I/O error while trying to read from {:s}".format(file))
+    except PermissionError:
+        fatal_error("Error: BUMPy does not have permission to read from {:s}".format(file))
+    except Exception:
+        fatal_error("An unknown error occurred while reading {:s}".format(file))
+    return True
+
+
+def fileCanBeOpenedForWriting(file):
+    try:
+        with open(file, 'w'):
+            pass
+    except PermissionError:
+        fatal_error("Error: BUMPy does not have permission to write to {:s}".format(file))
+    except IOError:
+        fatal_error("I/O error while trying to write to {:s}".format(file))
+    except Exception:
+        fatal_error("An unknown error occurred while writing {:s}".format(file))
+    return True
+
+
+def check_argument_sanity(args):
+    '''
+        Parses user command line options. Hopefully, any error from the user will be caught here, giving an early exit
+        and a helpful error message
+    '''
+
+    # check for valid shape option
+    try:
+        getattr(shapes, args.s)
+    except AttributeError:
+        fatal_error('Invalid shape selected with argument -s. "{:s}" is not a valid shape'.format(args.s))
+
+    # check for suffix of -f
+    if args.f[-4:] != ".gro" and args.f[-4:] != ".pdb":
+        fatal_error('User input for option -f was "{:s}", does not end in .gro or .pdb\nPlease use a valid suffix'.format(args.f))
+
+    # check input for existence and readability
+    if not fileExists(args.f):
+        fatal_error("Error: input file does not exist\nUser input for -f : {:s}".format(args.f))
+    fileCanBeOpenedForReading(args.f)
+
+    # check output for writability
+    for option in (args.o, args.p, args.n):
+        if option:
+            fileCanBeOpenedForWriting(option)
 
 
 def list_shapes():
@@ -1252,6 +1314,7 @@ def list_shapes():
                 if param.default == param.empty and param.name != 'zo' and param.name != 'template_bilayer':
                     print('    {:s}'.format(param.name))
 
+
 # -----------------------------------------------------------------------------
 # Command line start
 # -----------------------------------------------------------------------------
@@ -1263,6 +1326,7 @@ def main():
     if args.list:
         list_shapes()
         exit()
+    check_argument_sanity(args)
 
     # parse arguments
     geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }

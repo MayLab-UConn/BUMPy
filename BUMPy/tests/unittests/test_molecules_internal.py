@@ -23,7 +23,6 @@ class test_reorder_by_leaflet(unittest.TestCase):
 class test_reorder_within_leaflet(unittest.TestCase):
     pass
 
+
 class test_reorder_with_dummies_in_back(unittest.TestCase):
     pass
-
-    

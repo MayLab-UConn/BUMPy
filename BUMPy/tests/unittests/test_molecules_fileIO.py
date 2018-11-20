@@ -166,5 +166,6 @@ class test_write_index(unittest.TestCase):
         self.simple_system.write_index(temporaryOutputPath, dummy_name="MOLB")
         self.assertTrue(filecmp.cmp(temporaryOutputPath, referenceFilePath + "reference_dummy_index.ndx"))
 
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Tue Nov 20 12:40:16 EST 2018
+    github snapshot from Tue Nov 20 16:20:18 EST 2018
 '''
 
 import inspect
@@ -1183,7 +1183,7 @@ def parse_command_lines():
     required_inputs.add_argument('-s', help='Shape to make - see manual for a list of shapes', metavar='')
     required_inputs.add_argument('-f', help='Flat bilayer template to be used as a template',  metavar='')
     required_inputs.add_argument('-z', metavar='', help='Location of the pivotal plane (angstroms). Just one value, or' +
-                                                        'outer_zo:inner_zo')
+                                                        'outer_zo:inner_zo', default=None)
 
     # geometry
     geometric_arguments.add_argument('-g', nargs='*', help='Format is arg:value, ie r_cylinder:10 ' +
@@ -1213,8 +1213,8 @@ def parse_command_lines():
 
     # output files
     output_arguments.add_argument('-o', help='Output structure - only PDBs for now', default='confout.pdb', metavar='')
-    output_arguments.add_argument('-p', help='Simple .top topology file', metavar='')                    # optional
-    output_arguments.add_argument('-n', help='Simple .ndx index file, separating leaflets', metavar='')  # optional
+    output_arguments.add_argument('-p', help='Simple .top topology file', metavar='', default=None)                    # optional
+    output_arguments.add_argument('-n', help='Simple .ndx index file, separating leaflets', metavar='', default=None)  # optional
 
     return parser.parse_args()
 
@@ -1285,6 +1285,10 @@ def check_argument_sanity(args):
 
     # check for valid shape option
     try:
+        args.s
+    except AttributeError:
+        fatal_error("No shape was selected. Pick a shape to build using the -s flag")
+    try:
         getattr(shapes, args.s)
     except AttributeError:
         fatal_error('Invalid shape selected with argument -s. "{:s}" is not a valid shape'.format(args.s))
@@ -1299,9 +1303,29 @@ def check_argument_sanity(args):
     fileCanBeOpenedForReading(args.f)
 
     # check output for writability
+
     for option in (args.o, args.p, args.n):
         if option:
             fileCanBeOpenedForWriting(option)
+
+    # warn if zo is not set
+    if not args.z:
+        print("WARNING : zo was not set with the -z flag. Will use a default value of 10 angstroms. This should lead to " +
+              "sufficient accuracy of lipid areas for most purposes, but you should refer to the BUMPy publication to " +
+              "ensure that the default value is sufficient for your simulation purposes")
+    else:
+        try:
+            zo = [float(i) for i in args.z.split(':')]
+        except ValueError:
+            fatal_error('your input of "{:s}" for zo could not be converted to a floating point number'.format(args.z))
+        if len(zo) == 1:
+            if zo[0] < 0:
+                fatal_error("zo cannot be negative")
+        elif len(zo) == 2:
+            if zo[0] < 0 or zo[1] < 0:
+                fatal_error("zo cannot be negative")
+        elif len(zo) > 2:
+            fatal_error("Too many zo values selected")
 
 
 def list_shapes():
@@ -1331,7 +1355,10 @@ def main():
     # parse arguments
     geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }
 
-    zo = [float(i) for i in args.z.split(':')]
+    if args.z:
+        zo = [float(i) for i in args.z.split(':')]
+    else:
+        zo = [10, 10]   # default
     if len(zo) == 1:    # if one value given, apply to both leaflets
         zo *= 2
 

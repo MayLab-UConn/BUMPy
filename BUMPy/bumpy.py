@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Wed Nov 21 15:06:02 EST 2018
+    github snapshot from Wed Nov 21 15:30:18 EST 2018
 '''
 
 import inspect
@@ -1180,7 +1180,7 @@ def parse_command_lines():
     # mandatory input
     required_inputs.add_argument('-s', help='Shape to make - see manual for a list of shapes', metavar='')
     required_inputs.add_argument('-f', help='Flat bilayer template to be used as a template',  metavar='')
-    required_inputs.add_argument('-z', metavar='', help='Location of the pivotal plane (angstroms). Just one value, or' +
+    required_inputs.add_argument('-z', metavar='', help='Location of the pivotal plane (angstroms). Just one value, or ' +
                                                         'outer_zo:inner_zo', default=None)
 
     # geometry
@@ -1201,7 +1201,7 @@ def parse_command_lines():
                                     nargs="*")
 
     dummy_arguments.add_argument('--gen_dummy_particles', action='store_true',
-                                 help='Add a grid of dummy particles surrounding bilayer' )
+                                 help='Add a grid of dummy particles surrounding bilayer', default=False )
     dummy_arguments.add_argument('--dummy_name', metavar='', type=str, default='DUMY',
                                  help='Dummy particle atomname/resname. Defaults to DUMY')
     dummy_arguments.add_argument('--dummy_grid_thickness', metavar='', type=float,
@@ -1283,9 +1283,11 @@ def check_argument_sanity(args):
 
     # check for valid shape option
     try:
-        args.s
+        if not args.s:
+            fatal_error("No shape was selected. Pick a shape to build using the -s flag")
     except AttributeError:
         fatal_error("No shape was selected. Pick a shape to build using the -s flag")
+
     try:
         shape = getattr(shapes, args.s)
     except AttributeError:
@@ -1346,6 +1348,16 @@ def check_argument_sanity(args):
                 fatal_error("zo cannot be negative")
         elif len(zo) > 2:
             fatal_error("Too many zo values selected")
+
+    # check dummy grid args
+    if args.gen_dummy_particles:
+        try:
+            float(args.dummy_grid_thickness)
+        except AttributeError:
+            fatal_error('Error: you requested dummy particles with the --gen_dummy_particles option, but did not specify the thickness with --dummy_grid_thickness')
+        except ValueError:
+            fatal_error('Error: your input of "{:s}" for dummy_grid_thickness could not be converted to a floating point number'.format(args.dummy_grid_thickness))
+
 
 
 def list_shapes():

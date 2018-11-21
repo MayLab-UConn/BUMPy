@@ -25,7 +25,7 @@ class test_argument_sanity_checker_input_output(unittest.TestCase):
         self.validArgs.o = "argument_check_output.pdb"
         self.validArgs.p = None
         self.validArgs.n = None
-
+        self.validArgs.gen_dummy_particles = False
         # redirect stdout for text checking
         self.stdout = stdout_checker()
         self.stored_stdout = sys.stdout
@@ -71,7 +71,6 @@ class test_argument_sanity_checker_input_output(unittest.TestCase):
         self.assertEqual('Error: input file does not exist\nUser input for -f : {:s}\n'.format(invalidArgs.f), str(self.stdout))
 
     def test_input_permissions_error(self):
-
         # set up a file with no read permissions
         permissionless_file = "nopermissions.pdb"
         open(permissionless_file, 'a').close()
@@ -104,7 +103,7 @@ class test_argument_sanity_checker_zo(unittest.TestCase):
         self.invalidArgs.p = None
         self.invalidArgs.n = None
         self.invalidArgs.g = ["r_sphere:100"]
-
+        self.invalidArgs.gen_dummy_particles = False
         # redirect stdout for text checking
         self.stdout = stdout_checker()
         self.stored_stdout = sys.stdout
@@ -197,6 +196,54 @@ class test_argument_sanity_geometry(unittest.TestCase):
         with self.assertRaises(SystemExit):
             check_argument_sanity(self.invalidArgs)
         self.assertEqual('You submitted the following geometric argument(s) using the -g flag, but shape "{:s}" does not use those parameters\n{:s}\n'.format("sphere", "l_cylinder"), str(self.stdout))
+
+
+class test_argument_sanity_dummy(unittest.TestCase):
+
+    def setUp(self):
+        class args:
+            pass
+        self.validArgs = args()
+        self.validArgs.s = "sphere"
+        self.validArgs.f = "reference_files/test_user_interface/reference.pdb"
+        self.validArgs.z = "10"
+        self.validArgs.g = ["r_sphere:100"]
+        self.validArgs.o = "argument_check_output.pdb"
+        self.validArgs.p = None
+        self.validArgs.n = None
+
+        # redirect stdout for text checking
+        self.stdout = stdout_checker()
+        self.stored_stdout = sys.stdout
+        sys.stdout = self.stdout
+
+    def tearDown(self):
+        # restore stdout
+        sys.stdout = self.stored_stdout
+        written_test_files = ["argument_check_output.pdb"]
+        for file in written_test_files:
+            if os.path.exists(file):
+                os.remove(file)
+
+    def test_runs_successfully(self):
+        self.validArgs.gen_dummy_particles = True
+        self.validArgs.dummy_grid_thickness = 20
+        check_argument_sanity(self.validArgs)
+
+    def test_fails_with_no_thickness(self):
+        invalidArgs = self.validArgs
+        invalidArgs.gen_dummy_particles = True
+        with self.assertRaises(SystemExit):
+            check_argument_sanity(invalidArgs)
+        self.assertEqual('Error: you requested dummy particles with the --gen_dummy_particles option, but did not specify the thickness with --dummy_grid_thickness\n', str(self.stdout))
+
+    def test_fails_dummy_unit_conversion(self):
+        invalidArgs = self.validArgs
+        invalidArgs.gen_dummy_particles = True
+        invalidArgs.dummy_grid_thickness = "twenty"
+        with self.assertRaises(SystemExit):
+            check_argument_sanity(invalidArgs)
+        self.assertEqual('Error: your input of "{:s}" for dummy_grid_thickness could not be converted to a floating point number\n'.format(invalidArgs.dummy_grid_thickness), str(self.stdout))
 
 
 class test_display_parameters(unittest.TestCase):

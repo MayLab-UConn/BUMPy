@@ -21,7 +21,7 @@ class test_argument_sanity_checker_input_output(unittest.TestCase):
         self.validArgs.s = "sphere"
         self.validArgs.f = "reference_files/test_user_interface/reference.pdb"
         self.validArgs.z = "10"
-        self.validArgs.g = "r_sphere:100"
+        self.validArgs.g = ["r_sphere:100"]
         self.validArgs.o = "argument_check_output.pdb"
         self.validArgs.p = None
         self.validArgs.n = None
@@ -103,7 +103,7 @@ class test_argument_sanity_checker_zo(unittest.TestCase):
         self.invalidArgs.o = "output.pdb"
         self.invalidArgs.p = None
         self.invalidArgs.n = None
-        self.invalidArgs.g = "r_sphere:100"
+        self.invalidArgs.g = ["r_sphere:100"]
 
         # redirect stdout for text checking
         self.stdout = stdout_checker()
@@ -178,6 +178,26 @@ class test_argument_sanity_geometry(unittest.TestCase):
         with self.assertRaises(SystemExit):
             check_argument_sanity(self.invalidArgs)
         self.assertEqual("Geometry field -g was not specified. Please specify geometry. For example, ./bumpy -s sphere -g r_sphere:100\n", str(self.stdout))
+
+    def test_g_value_error(self):
+        self.invalidArgs.g = ["r_sphere:five"]
+        with self.assertRaises(SystemExit):
+            check_argument_sanity(self.invalidArgs)
+        self.assertEqual("Could not convert one or more -g arguments to float - check you inputs\n", str(self.stdout))
+
+    def test_g_missing_arguments(self):
+        self.invalidArgs.s = "cylinder"
+        self.invalidArgs.g = ["r_cylinder:100"]
+        with self.assertRaises(SystemExit):
+            check_argument_sanity(self.invalidArgs)
+        self.assertEqual('The following required geometry argument(s) for the shape "{:s}" are missing :\n{:s}\n'.format("cylinder", "l_cylinder"), str(self.stdout))
+
+    def test_g_unknown_args(self):
+        self.invalidArgs.g = ["r_sphere:100", "l_cylinder:100"]
+        with self.assertRaises(SystemExit):
+            check_argument_sanity(self.invalidArgs)
+        self.assertEqual('You submitted the following geometric argument(s) using the -g flag, but shape "{:s}" does not use those parameters\n{:s}\n'.format("sphere", "l_cylinder"), str(self.stdout))
+
 
 class test_display_parameters(unittest.TestCase):
     pass

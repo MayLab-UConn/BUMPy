@@ -3,15 +3,16 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Tue Nov 20 16:45:51 EST 2018
+    github snapshot from Wed Nov 21 15:06:02 EST 2018
 '''
 
 import inspect
 import sys
 import os
 from argparse import ArgumentParser
-from time import time
 from copy import deepcopy
+from inspect import getfullargspec
+from time import time
 
 # The  main requirements of bumpy are:
 #  - v3 python interpreter
@@ -769,7 +770,6 @@ class shapes:
             return top_leaflet
 
     class cylinder(shape):
-
         @staticmethod
         def dimension_requirements(r_cylinder, l_cylinder, completeness=1, buff=50):
             return np.array([ l_cylinder + buff , (r_cylinder + buff) * 2 * np.pi * completeness ])
@@ -948,7 +948,6 @@ class shapes:
             return inside_top_quarter
 
     class semicylinder_plane(shape):
-
         @staticmethod
         def dimension_requirements(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
             cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder, completeness=0.5)
@@ -989,7 +988,6 @@ class shapes:
             return semicyl
 
     class semisphere_plane(shape):
-
         @staticmethod
         def dimension_requirements(r_sphere, r_junction, l_flat, buff=50):
             sphdims = shapes.semisphere.dimension_requirements(r_sphere)
@@ -1289,7 +1287,7 @@ def check_argument_sanity(args):
     except AttributeError:
         fatal_error("No shape was selected. Pick a shape to build using the -s flag")
     try:
-        getattr(shapes, args.s)
+        shape = getattr(shapes, args.s)
     except AttributeError:
         fatal_error('Invalid shape selected with argument -s. "{:s}" is not a valid shape'.format(args.s))
 
@@ -1303,16 +1301,32 @@ def check_argument_sanity(args):
     fileCanBeOpenedForReading(args.f)
 
     # check output for writability
-
     for option in (args.o, args.p, args.n):
         if option:
             fileCanBeOpenedForWriting(option)
 
     # check geometric arguments
     try:
-        args.g
+        geometric_args = {garg.split(':')[0] : float(garg.split(':')[1]) for garg in args.g }
     except AttributeError:
         fatal_error("Geometry field -g was not specified. Please specify geometry. For example, ./bumpy -s sphere -g r_sphere:100")
+    except ValueError:
+        fatal_error("Could not convert one or more -g arguments to float - check you inputs")
+
+    # some hackery to get required arguments without defaults. TODO: improve
+    shape_inspection = getfullargspec(shape.gen_shape)
+    n_default_args = len(shape_inspection.defaults)
+    # first 2 arguments are always template and zo
+    # we assume that the arguments with defaults are at the end of the argument list
+    required_args = shape_inspection.args[2:-n_default_args]  # first 2 arguments are always template and zo
+    required_missing_args = set(required_args) - set(geometric_args.keys())
+    unknown_args = set(geometric_args.keys()) - set(required_args)
+    if required_missing_args:
+        fatal_error('The following required geometry argument(s) for the shape "{:s}" are missing :\n{}'.format(args.s,
+                    ', '.join(required_missing_args)))
+    if unknown_args:
+        fatal_error('You submitted the following geometric argument(s) using the -g flag, but shape "{:s}" does not use those parameters\n{}'.format(
+                    args.s, ', '.join(unknown_args)))
 
     # warn if zo is not set
     if not args.z:

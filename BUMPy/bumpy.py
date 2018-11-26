@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Mon Nov 26 12:49:14 EST 2018
+    github snapshot from Mon Nov 26 13:30:00 EST 2018
 '''
 
 import inspect
@@ -885,13 +885,10 @@ class shapes:
             # difference from sphere, exclude center
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &     template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
-            top_leaflet.write_coordinates('top1.pdb', position=False)
-            bot_leaflet.write_coordinates('bot1.pdb', position=False)
+
             # scale slices to slice_radius
             top_leaflet.scale_flat_to_outer_partial_toroid(r_torus, r_tube, outer_r_tube)
             bot_leaflet.scale_flat_to_outer_partial_toroid(r_torus, r_tube, inner_r_tube)
-            top_leaflet.write_coordinates('top2.pdb', position=False)
-            bot_leaflet.write_coordinates('bot2.pdb', position=False)
 
             top_leaflet.append(bot_leaflet)
             # check quarter torus, use circular slice to cut off one side or other

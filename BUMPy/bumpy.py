@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Wed Nov 21 15:30:18 EST 2018
+    github snapshot from Mon Nov 26 12:49:14 EST 2018
 '''
 
 import inspect
@@ -1191,6 +1191,7 @@ def parse_command_lines():
     optional_arguments.add_argument('-h', '--help', action='help', help='show this help message and exit')
     optional_arguments.add_argument('-l', '--list', default=False, action='store_true',
                                     help='List current repository of shapes and their geometric arguments')
+    # TODO : change this to a simple invert option
     optional_arguments.add_argument('--outer', default='top', help='By default, top leaflet = outer leaflet. ' +
                                     'Set to "bot" to invert', metavar='')
     # apl option unimplemented
@@ -1317,10 +1318,13 @@ def check_argument_sanity(args):
 
     # some hackery to get required arguments without defaults. TODO: improve
     shape_inspection = getfullargspec(shape.gen_shape)
-    n_default_args = len(shape_inspection.defaults)
+    if not shape_inspection.defaults:
+        n_default_args = 0
+    else:
+        n_default_args = len(shape_inspection.defaults)
     # first 2 arguments are always template and zo
     # we assume that the arguments with defaults are at the end of the argument list
-    required_args = shape_inspection.args[2:-n_default_args]  # first 2 arguments are always template and zo
+    required_args = shape_inspection.args[2:len(shape_inspection.args) - n_default_args]  # first 2 arguments are always template and zo
     required_missing_args = set(required_args) - set(geometric_args.keys())
     unknown_args = set(geometric_args.keys()) - set(required_args)
     if required_missing_args:
@@ -1357,7 +1361,6 @@ def check_argument_sanity(args):
             fatal_error('Error: you requested dummy particles with the --gen_dummy_particles option, but did not specify the thickness with --dummy_grid_thickness')
         except ValueError:
             fatal_error('Error: your input of "{:s}" for dummy_grid_thickness could not be converted to a floating point number'.format(args.dummy_grid_thickness))
-
 
 
 def list_shapes():

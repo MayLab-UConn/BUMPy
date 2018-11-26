@@ -3,7 +3,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-
+sys.path.insert(0, os.path.abspath(".."))
 from bumpy import check_argument_sanity
 from testutils import stdout_checker
 

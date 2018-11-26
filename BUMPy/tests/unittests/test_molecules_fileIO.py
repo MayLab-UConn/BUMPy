@@ -5,6 +5,7 @@ import os
 import filecmp
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
+sys.path.insert(0, os.path.abspath(".."))
 
 from bumpy import Molecules, Metadata
 from testutils import PDBComp, GROComp

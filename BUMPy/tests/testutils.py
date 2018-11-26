@@ -73,5 +73,11 @@ class stdout_checker:
     def write(self, string):
         self.data.append(string)
 
+    def clear(self):
+        self.data = []
+
     def __str__(self):
         return "".join(self.data)
+
+    def flush(self):
+        pass

@@ -3,7 +3,7 @@
 ''' Main script for BUMPY project.
     No official version numbering for this script
 
-    github snapshot from Mon Nov 26 13:30:00 EST 2018
+    github snapshot from Tue Nov 27 11:31:37 EST 2018
 '''
 
 import inspect
@@ -817,7 +817,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_torus, r_tube, buff=50):
-            return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
+            return np.array([2 * (buff + r_torus) ] * 2 + [r_tube + buff])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_torus, r_tube, cutoff_method='com', print_intermediates=False):
@@ -861,7 +861,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_torus, r_tube, buff=50):
-            return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [r_tube + buff])
+            return np.array([2 * (buff + r_torus + r_tube) ] * 2 + [r_tube + buff])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_torus, r_tube, cutoff_method='com', print_intermediates=False):
@@ -923,7 +923,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_torus, r_tube, buff=50):
-            return np.array([2 * (buff + r_torus + r_tube * np.pi) ] * 2 + [2 * (r_tube + buff)])
+            return np.array([2 * (buff + r_torus + r_tube) ] * 2 + [2 * (r_tube + buff)])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_torus, r_tube, completeness=0.5):
@@ -954,7 +954,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
-            return np.array([l_cylinder, 2 * (r_cylinder + r_junction) + l_flat, r_cylinder + r_junction + 2 * buff])
+            return np.array([l_cylinder, 2 * (r_cylinder + r_junction) + l_flat, r_cylinder + r_junction + buff])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder, r_junction, l_flat):
@@ -994,10 +994,14 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_sphere, r_junction, l_flat, buff=50):
-            return np.array([l_flat, l_flat, r_sphere + r_junction + 2 * buff])
+            return np.array([l_flat, l_flat, r_sphere + r_junction + buff])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_sphere, r_junction, l_flat):
+
+            if (r_sphere + r_junction) > (l_flat / 2):
+                raise UserWarning("Flat region too small for sphere/junction radii")
+
             semisph   = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere)
 
             template_2 = deepcopy(template_bilayer)
@@ -1020,7 +1024,7 @@ class shapes:
         @staticmethod
         def dimension_requirements(r_cylinder, l_cylinder, r_junction, l_flat, buff=50):
             cyldims = shapes.cylinder.dimension_requirements(r_cylinder, l_cylinder)
-            flatdims = np.array([l_flat] * 2)
+            flatdims = shapes.flat_bilayer.dimension_requirements(l_flat, l_flat)
             jdims  =  shapes.cylinder.dimension_requirements(r_junction, l_cylinder, completeness=0.5)
             return np.array([max([cyldims[0], flatdims[0], jdims[0]]), max([cyldims[1], flatdims[1], jdims[1]])])
 
@@ -1067,7 +1071,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_cylinder, l_cylinder, buff=50):
-            return np.array([l_cylinder + 2 * (r_cylinder + buff), 2 * (r_cylinder + buff), 2 * r_cylinder + buff ])
+            return np.array([l_cylinder + 2 * (r_cylinder + buff), 2 * (r_cylinder + buff), 2 * (r_cylinder + buff) ])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_cylinder, l_cylinder):
@@ -1128,7 +1132,7 @@ class shapes:
 
         @staticmethod
         def final_dimensions(r_buckle, l_buckle, buff=50):
-            return np.array([l_buckle, 4 * r_buckle, 2 * r_buckle + buff])
+            return np.array([l_buckle, 4 * r_buckle, 2 * (r_buckle + buff)])
 
         @staticmethod
         def gen_shape(template_bilayer, zo, r_buckle, l_buckle):

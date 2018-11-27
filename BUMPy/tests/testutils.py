@@ -5,7 +5,7 @@ class FileComp:
     @staticmethod
     def filesMatchExactly(file1, file2):
         with open(file1, 'r') as f1, open(file2, 'r') as f2:
-            for line1, line2 in f1, f2:
+            for line1, line2 in zip(f1, f2):
                 if line1 != line2:
                     return False
         return True

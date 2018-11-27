@@ -1,0 +1,12 @@
+buckle                    r_buckle:50 l_buckle:60
+capped_cylinder           r_cylinder:50 l_cylinder:60
+cylinder                  r_cylinder:50 l_cylinder:60
+double_bilayer_cylinder   r_cylinder:50 l_cylinder:50 r_junction:40 l_flat:250
+flat_bilayer              x_dimension:50 y_dimension:40
+inner_quarter_torus       r_torus:75 r_tube:50
+outer_quarter_torus       r_torus:75 r_tube:50
+semicylinder_plane        r_cylinder:50 l_cylinder:30 r_junction:40 l_flat:50
+semisphere_plane          r_sphere:50  r_junction:30 l_flat:50
+semisphere                r_sphere:50
+sphere                    r_sphere:50
+torus                     r_torus:75 r_tube:50

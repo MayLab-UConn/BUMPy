@@ -1,0 +1,11 @@
+A few simple bash scripts to check if the output of BUMPy can be used
+to start gromacs simulations
+
+To run, need gromacs in path
+
+Start files include
+-martini 2.0 topology (with a dummy particle implementation)
+-mdp files
+
+The script will automatically add header includes for martini topology
+to the output topology from BUMPy

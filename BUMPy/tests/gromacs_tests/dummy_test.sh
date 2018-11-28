@@ -5,7 +5,7 @@ folder="dummy_test_files"
 
 rm $folder/*.tpr $folder/*.gro $folder/test*
 
-python3 ../../bumpy.py -f asymm.pdb -s sphere -z 10.5 -o $folder/test_start.pdb -p $folder/test_start.top -n $folder/test_start.ndx   --dummy_grid_thickness 50 -g r_sphere:100   --gen_dummy_particles
+python3 ../../bumpy.py -f $folder/flat_input.pdb -s sphere -z 10.5 -o $folder/test_start.pdb -p $folder/test_start.top -n $folder/test_start.ndx   --dummy_grid_thickness 50 -g r_sphere:100   --gen_dummy_particles
 
 echo '#include "toppar/martini_v2.0_ions.itp"' | cat - $folder/test_start.top > temp && mv temp $folder/test_start.top
 echo '#include "toppar/martini_v2.0_lipids_all_201506.itp"' | cat - $folder/test_start.top > temp && mv temp $folder/test_start.top
@@ -24,6 +24,6 @@ else
 	echo 'Failure :('
 fi
 
-rm $folder/#*# mdout.mdp ./#*#
+rm $folder/#*# mdout.mdp $folder/test*
 
 exit

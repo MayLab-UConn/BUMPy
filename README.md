@@ -1,9 +1,12 @@
 #			BUMPy
 
-This program is  used to generate coordinate files for use in molecular dynamics (MD) simulations of curved lipid bilayers
+This program is used to generate coordinate files for use in molecular dynamics (MD) simulations of curved lipid bilayers
 
 ### CITATION
-The BUMPy publication should be coming out shortly, stay tuned!
+If you use our tool, please read and cite the BUMPy publication:
+
+Kevin Boyd and Eric May. BUMPy: A Model-Independent Tool for Constructing Lipid Bilayers of Varying Curvature and Composition. 
+Journal of Chemical Theory and Computation, 2018, 14(12), pp 6642-6652.
 
 ### AUTHORS
 BUMPy is written and maintained by Kevin Boyd (kevin.boyd@uconn.edu), in the lab of Eric May at the University of Connecticut.

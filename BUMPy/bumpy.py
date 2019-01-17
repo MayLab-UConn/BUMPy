@@ -10,7 +10,6 @@ import sys
 import os
 from argparse import ArgumentParser
 from copy import deepcopy
-from inspect import getfullargspec
 from time import time
 
 # The  main requirements of bumpy are:
@@ -18,6 +17,14 @@ from time import time
 #  - numpy
 #  - scipy
 # Exit if otherwise
+
+try:
+    from inspect import getfullargspec
+except ImportError:
+    if sys.version_info[0] == 2:
+        print("You are using python version 2, you must use python v3 for this script, exiting")
+        sys.exit()
+
 try:
     import numpy as np
 except ImportError:
@@ -28,10 +35,6 @@ try:
     from scipy.optimize import fsolve
 except ImportError:
     print("scipy does not appear to be installed, cannot run script")
-    sys.exit()
-
-if sys.version_info[0] == 2:
-    print("You are using python version 2, you must use python v3 for this script, exiting")
     sys.exit()
 
 
@@ -574,7 +577,8 @@ class Molecules:
             else:
                 if header:
                     fout.write('REMARK  - Generated using command: {:s}\n'.format(header))
-                fout.write('CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}\n'.format(*self.boxdims, 90))
+                # don't * unpack boxdims so we can parse in python2 and get to error message without compile error
+                fout.write('CRYST1{0:9.3f}{1:9.3f}{2:9.3f}{3:7.2f}{3:7.2f}{3:7.2f}\n'.format(self.boxdims[0], self.boxdims[1], self.boxdims[2], 90))
 
                 # calculating residue and atom numbers
                 resid = np.mod(resid, 10000)   # 9,999 max for pdb
@@ -1400,7 +1404,8 @@ def main():
     shape_tobuild = getattr(shapes, args.s)
 
     # read in pdb
-    print('Reading in PDB file  ... ', end='', flush=True)
+    sys.stdout.write('Reading in PDB file  ... ')
+    sys.stdout.flush()
     t = time()
     template_bilayer = Molecules(infile=args.f, ignore=args.ignore_resnames)
     print('Finished reading PDB with {:d} atoms - time elapsed = {:.1f} seconds'.format(
@@ -1422,7 +1427,8 @@ def main():
     template_bilayer.duplicate_laterally(*mult_factor)
 
     # make shape
-    print('Generating shape     ... ', end='', flush=True)
+    sys.stdout.write('Generating shape     ... ')
+    sys.stdout.flush()
     t = time()
     # construct the shape
     shape = shape_tobuild.gen_shape(template_bilayer, zo, **geometric_args)
@@ -1447,7 +1453,8 @@ def main():
         dummy_name = ''
 
     # file output
-    print('Writing out PDB file ... ', end='', flush=True)
+    sys.stdout.write('Writing out PDB file ... ')
+    sys.stdout.flush()
     t = time()
     shape.write_coordinates(args.o, header=cli, dummy_name=dummy_name)
     if args.p:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ''' Main script for BUMPY project.
-    version 1.0-dev
+    version 1.0.0
     github snapshot from Tue Nov 27 11:31:37 EST 2018
 '''
 

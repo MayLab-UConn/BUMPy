@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
 
-from bumpy import Molecules, shapes, Tree_node, Shape_tree, Shape_info
+from bumpy import Tree_node, Shape_tree, Shape_info
 
 
 class test_shape_node(unittest.TestCase):

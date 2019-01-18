@@ -75,6 +75,8 @@ if you come across a usage case where soft-core potentials are not sufficient!
 ### DEVELOPMENT
 * BUMPy is maintained on github (link: https://github.com/MayLab-UConn/BUMPy)
 * I'll happily accept code contributions to improve the tool or add shapes to the repository.
+* Work will be done on the dev branch, and merged into master at official release points. This is so that
+  one can pinpoint a release version if a science-affecting bug is found - but hopefully it won't matter!
 * If there's a shape you want to simulate, I can likely make a template for it very quickly. Email me with a description of what you want built and I'll add it to the repository.
 ### Bugs
 To report bugs, email Kevin Boyd at kevin.boyd@uconn.edu

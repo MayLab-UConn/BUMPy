@@ -126,7 +126,7 @@ class Molecules:
         attribute, list of xyz box dimensions.
     '''
 
-    def __init__(self, infile=None, metadata=[], coords=[], boxdims=[], ignore=[]):
+    def __init__(self, infile=None, metadata=(), coords=(), boxdims=(), ignore=()):
         '''Can initialize from file, or with manual inputs (like when slicing).
            Can also initialize with all objects blank, and wait for input
         '''
@@ -422,7 +422,7 @@ class Molecules:
     # -------------------------------------------------------------------------
     # file i/o
     # -------------------------------------------------------------------------
-    def read_input(self, filein, fmt='pdb', reorganize=False, ignore=[]):
+    def read_input(self, filein, fmt='pdb', reorganize=False, ignore=()):
         '''Read input pdb or gro. .gro files are free format, which is tricky for reading if fields are missing or
            don't have whitespace (ie as occurs in manual format between resnumber and resname).
 
@@ -516,7 +516,7 @@ class Molecules:
         # assigning resid lengths and leaflets
         self.assign_leaflets()
 
-    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None, dummy_name=None,
+    def write_coordinates(self, outfile, position='None', reorder=True, buff=8192, header=None, dummy_name=None,
                           chunksize=100000):
         ''' TODO: Document
             TODO: check output file writability - general utility for file writing
@@ -1161,6 +1161,10 @@ class shapes:
             semicyl.append(junction2)
             return semicyl
 
+# ----------------------------------------------------------------------------------------------------------------------
+# Done with shapes repository - on to user i/o
+# ----------------------------------------------------------------------------------------------------------------------
+
 
 def parse_command_lines():
     ''' Parses command line for parameters, returns parsed arguments '''
@@ -1456,7 +1460,7 @@ def main():
     sys.stdout.write('Writing out PDB file ... ')
     sys.stdout.flush()
     t = time()
-    shape.write_coordinates(args.o, header=cli, dummy_name=dummy_name)
+    shape.write_coordinates(args.o, header=cli, dummy_name=dummy_name, position="positive")
     if args.p:
         shape.write_topology(args.p)
     if args.n:

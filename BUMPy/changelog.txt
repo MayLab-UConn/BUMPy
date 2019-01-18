@@ -3,3 +3,12 @@ Version 1.0.0 - Jan. 18 2019
 ---------------------------
 -Added citation to README
 -Release version 1.0.0
+
+---------------------------
+Version 1.1.0 - ???
+--------------------------
+-Default option when printing coordinates is now not to translate to put smallest coordinate
+ in the box, and instead that option is passed in main. This doesn't change behavior when
+ using tool from command line, when using as a library now we don't default to messing with
+ intermediates when printing
+ 

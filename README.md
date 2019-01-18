@@ -20,7 +20,7 @@ Just numpy and scipy!
 ### USAGE
 #### Command line tool
 BUMPY is designed to be used at the command line, with something like the command "python bumpy.py [ options ]". All you
-need is the bumpy.py file!
+need is the bumpy.py file! You can also take the file out of the BUMPy directory and use it wherever you want.
 * For a description of command line options, use the -h option at the command line.
 * For a list of supported curved shapes, use the --list option at the command line, or see the shape repository pdf.
 * Example commands with BUMPy are available in the examples directory

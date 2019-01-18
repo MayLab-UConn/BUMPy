@@ -38,6 +38,10 @@ except ImportError:
     sys.exit()
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# math utilities
+# ----------------------------------------------------------------------------------------------------------------------
+
 def cart2pol(cart_coords):
     ''' Converts cartesian to polar coordinates. Acts on first 2 columns (xy)
         returns tuple of (theta,rho,z)
@@ -71,7 +75,7 @@ def outer_toroid_angle_from_area(r_torus, r_tube, area):
     return fsolve(toroid_area, 0)
 
 # ------------------------------------------------------------------------------
-# Molecules class
+# Main data classes
 # ------------------------------------------------------------------------------
 
 
@@ -668,14 +672,70 @@ class Molecules:
                 write_index_unit(fout, "bot_" + dummy_name, bot)
 
 
+class Tree_node(object):
+    ''' Node class '''
+    def __init__(self, name, parent=None):
+        self.name = name
+        # no parent if root
+        self.parent = parent
+        self.children = []
+
+    def add_child(self, child):
+        assert not self.has_child(child), "Duplicate entry in tree"
+        self.children.append(child)
+        child.parent = self
+
+    def has_child(self, child):
+        return child in self.children
+
+
+class Shape_tree(object):
+    '''
+    To print out all the intermediates in the BUMPy process on demand, we need to represent the shape heirarchy to show
+     in an orderly way what intermediates are part of what - so we'll use a tree to show the dependencies
+
+    Parameters
+        name: The shape we're trying to create
+
+    '''
+
+    def __init__(self, name):
+        self.root = Tree_node(name)
+        self.nodes = [self.root]
+
+    def add_node(self, base_node, name):
+        new_node = Tree_node(name, parent=base_node)
+        self.nodes.append(new_node)
+        base_node.add_child(new_node)
+
+
+# utility class for printing out intermediates in the shape creation process
+class Shape_info:
+
+    def __init__(self, shape, print_is_enabled):
+        self._shape_dependency_tree = Shape_tree(shape)
+        self._print_is_enabled = print_is_enabled
+        self.current_node = shape.root
+
+    def register_subshape(self, subshape):
+        self._shape_dependency_tree.add_node(self.current_node, subshape)
+
+    def get_shape_heirarchy_string(self):
+        curr_node = self.current_node
+        shape_string = [curr_node.name]
+        while curr_node.parent is not None:
+            curr_node = curr_node.parent
+            shape_string.append(curr_node.name)
+        return ".".join(shape_string.reverse())
 # ------------------------------------------------------------------------------
 # SHAPE REPOSITORY
 # ------------------------------------------------------------------------------
+
+
 class shapes:
     ''' This is the repository for all of the shapes that can be built. The 3 basic shapes are semispheres, cylinders
-        and partial tori (junctions), as well as flat bilayers which I don't have a class for, we just take slices out
-        of the template. Every shape more complex than that should be a combination of the basic shapes combined
-        with some translations and rotations.
+        and partial tori (junctions), as well as flat bilayers. Every shape more complex than that should be a
+        combination of the basic shapes combined with some translations and rotations.
 
         Each shape needs to have 3 static methods:
             1. dimension_requirements - returns an xy dimension which is the minimum size the flat template can be.

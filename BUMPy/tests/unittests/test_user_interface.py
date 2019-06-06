@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
 sys.path.insert(0, os.path.abspath(".."))
-from bumpy import check_argument_sanity
+from bumpy import check_argument_sanity, check_pdb_dimension_overflow, shapes
 from testutils import stdout_checker
 
 
@@ -244,6 +244,34 @@ class test_argument_sanity_dummy(unittest.TestCase):
         with self.assertRaises(SystemExit):
             check_argument_sanity(invalidArgs)
         self.assertEqual('Error: your input of "{:s}" for dummy_grid_thickness could not be converted to a floating point number\n'.format(invalidArgs.dummy_grid_thickness), str(self.stdout))
+
+
+class test_pdb_overflow_checker(unittest.TestCase):
+
+    def setUp(self):
+        self.shape = shapes.flat_bilayer
+        self.geometric_arguments = {"x_dimension" : 1000, "y_dimension" : 1000}
+        self.output_format = "output.pdb"
+
+        self.stdout = stdout_checker()
+        self.stored_stdout = sys.stdout
+        sys.stdout = self.stdout
+
+    def test_does_not_trigger_correct_dimensions(self):
+        check_pdb_dimension_overflow(self.shape, self.geometric_arguments, self.output_format)
+
+    def test_triggers_with_bad_dimensions(self):
+        self.geometric_arguments["x_dimension"] = 11000
+        with self.assertRaises(SystemExit):
+            check_pdb_dimension_overflow(self.shape, self.geometric_arguments, self.output_format)
+        self.assertEqual("Error: You have requested a shape with a long dimension of {:d} angstroms, but the PDB file format ".format(self.geometric_arguments["x_dimension"]) +
+                         "is limited to 10k angstroms. We suggest using the .gro format, which allows for up to 100k angstroms.\n",
+                         str(self.stdout))
+
+    def test_does_not_trigger_gro_file(self):
+        self.geometric_arguments["x_dimension"] = 11000
+        self.output_format = "output.gro"
+        check_pdb_dimension_overflow(self.shape, self.geometric_arguments, self.output_format)
 
 
 class test_display_parameters(unittest.TestCase):

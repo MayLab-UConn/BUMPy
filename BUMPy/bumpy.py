@@ -1431,6 +1431,17 @@ def check_argument_sanity(args):
             fatal_error('Error: your input of "{:s}" for dummy_grid_thickness could not be converted to a floating point number'.format(args.dummy_grid_thickness))
 
 
+def check_pdb_dimension_overflow(shape, args, output_format, maximum_value=9999.999):
+    '''
+        Checks for dimension overflow. The PDB format maximum size is 999.9999 nm
+    '''
+    if output_format[-4:] == ".pdb":
+        finaldims = shape.final_dimensions(**args)
+        if finaldims.max() > maximum_value:
+            fatal_error("Error: You have requested a shape with a long dimension of {} angstroms, but the PDB file format ".format(finaldims.max()) +
+                        "is limited to 10k angstroms. We suggest using the .gro format, which allows for up to 100k angstroms.")
+
+
 def list_shapes():
     print('Shapes in repository, with listed arguments:\n')
     for shape in inspect.getmembers(shapes):
@@ -1466,6 +1477,8 @@ def main():
         zo *= 2
 
     shape_tobuild = getattr(shapes, args.s)
+
+    check_pdb_dimension_overflow(shape_tobuild, geometric_args, args.o)
 
     # read in pdb
     sys.stdout.write('Reading in PDB file  ... ')

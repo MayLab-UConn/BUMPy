@@ -18,24 +18,27 @@ from time import time
 #  - scipy
 # Exit if otherwise
 
+
+def fatal_error(message):
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
 try:
     from inspect import getfullargspec
 except ImportError:
     if sys.version_info[0] == 2:
-        print("You are using python version 2, you must use python v3 for this script, exiting")
-        sys.exit()
+        fatal_error("You are using python version 2, you must use python v3 for this script, exiting")
 
 try:
     import numpy as np
 except ImportError:
-    print("numpy does not appear to be installed, cannot run script")
-    sys.exit()
+    fatal_error("numpy does not appear to be installed, cannot run script")
 
 try:
     from scipy.optimize import fsolve
 except ImportError:
-    print("scipy does not appear to be installed, cannot run script")
-    sys.exit()
+    fatal_error("scipy does not appear to be installed, cannot run script")
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1308,11 +1311,6 @@ def display_parameters(cl_args):
     pass
 
 
-def fatal_error(message):
-    print(message)
-    sys.exit(1)
-
-
 def fileExists(file):
     return os.path.exists(file)
 
@@ -1406,7 +1404,7 @@ def check_argument_sanity(args):
     if not args.z:
         print("WARNING : zo was not set with the -z flag. Will use a default value of 10 angstroms. This should lead to " +
               "sufficient accuracy of lipid areas for most purposes, but you should refer to the BUMPy publication to " +
-              "ensure that the default value is sufficient for your simulation purposes")
+              "ensure that the default value is sufficient for your simulation purposes", file=sys.stderr)
     else:
         try:
             zo = [float(i) for i in args.z.split(':')]

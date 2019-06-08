@@ -1,6 +1,6 @@
 #			BUMPy
 
-This program is used to generate coordinate files for use in molecular dynamics (MD) simulations of curved lipid bilayers
+This program is used to generate coordinate files for use in molecular dynamics simulations of curved lipid bilayers
 
 ### CITATION
 If you use our tool, please read and cite the BUMPy publication:
@@ -27,32 +27,29 @@ need is the bumpy.py file! You can also take the file out of the BUMPy directory
 #### Accurate area estimation
 A novel feature of BUMPy is quantitative estimation of areas in curved bilayers using the monolayer pivotal plane - a surface
 within the monolayer that does not undergo area changes upon curvature deformations. On the command line, this option is
-controlled with the -z flag. The pivotal plane location is composition-dependent.
+controlled with the -z flag. The pivotal plane location is composition-dependent. If you do not select a pivotal plane value at the command line, one will be selected for you, though we suggest that you read the publication for an explanation of the potential consequences.
 #### Does having an accurate pivotal plane estimate matter?
 It depends on what you're using the system for. Having an inaccurate pivotal plane estimate when building these systems
 leads to area mismatch. We quantify some of the effects of such area mismatch in our publication. The summary is,
 the effects of this area mismatch are quantifiable for a number of observables such as lipid splay and diffusion, but
-generally quite small if your estimated pivotal plane location is within a few Angstroms of the true value. This is good
+generally quite small if your estimated pivotal plane location is within a few angstroms of the true value. This is good
 news, as most of the lipids we've calculated pivotal plane locations for only vary in location by a few angstroms. 10 A
 is a good starting guess. The key is to know what properties you want to measure, and if the subtle differences due to
-area mismatch are on the same order as the degree of precision you want in your measurements. Do take a look at our publication
-to see what we're talking about!
+area mismatch are on the same order as the degree of precision you want in your measurements. Do take a look at our publication to see what we're talking about!
 #### Suggested values of pivotal planes
 * If you don't care overly much about area matching, and just want to build a shape, feel free to use 10A as the -z input,
-and you should have reasonable inner and outer leaflet areas
+and you should have reasonable inner and outer leaflet areas.
 * If you're working with the Martini forcefield, we've calculated pivotal plane locations for over a dozen lipids, found
-in the pivotal_planes folder. We hope to add to this repository over time
+in the pivotal_planes folder. We hope to add to this repository over time.
 * If you want a more quantitative estimate of the pivotal plane location, you can infer a location from some flat bilayer
 properties such as thickness or the lateral pressure profile, though we haven't managed to find an exact relationship between
 z values and flat bilayer properties (and we've tried). See our publication for details.
-* If you absolutely need rigorous area matching, and the z value of the lipid you want to simulate hasn't been calculated yet,
-you can do it yourself! See our publication and cite the authors who came up with the z measurement- (Wang and Deserno, J. Chem. Phys. 16, 164109 (2015)). If you do calculate your own pivotal planes, please let us know and we'll update our repository with your reported values!
+* If you absolutely need rigorous area matching, and the z value of the lipid you want to simulate hasn't been calculated yet, you can do it yourself! See our publication and cite the authors who came up with the zo measurement- (Wang and Deserno, J. Chem. Phys. 16, 164109 (2015)). If you do calculate your own pivotal planes, please let us know and we'll update our repository with your reported values!
 
 ### Equilibration of BUMPy systems
 By mixing and matching different building block shapes, the potential arises for clashes at shape interfaces, which can
 (and typically does) lead to non-finite forces during energy minimization. To allow minimization to proceed, we use soft-core
-potentials to scale down short-range nonbonded interactions. If you are using Gromacs, the following .mdp snippet (taken from the CHARMM-GUI's
-suggested minimization scheme) can be used - just paste it into a typical minimization script, and minimization should work.
+potentials to scale down short-range nonbonded interactions. If you are using Gromacs, the following .mdp snippet (taken from the CHARMM-GUI's suggested minimization scheme) can be used - just paste it into a typical minimization script, and minimization should work.
 ```
 free-energy              = yes
 init-lambda              = 0.01

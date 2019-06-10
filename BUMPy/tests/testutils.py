@@ -66,7 +66,7 @@ class GROComp:
 
 # class that stdout is redirected to. Modified from
 # http://pragmaticpython.com/2017/03/23/unittesting-print-statements/
-class stderr_checker:
+class std_checker:
     def __init__(self):
         self.data = []
 

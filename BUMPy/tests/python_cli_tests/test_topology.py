@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bump
 sys.path.insert(0, os.path.abspath(".."))
 
 import bumpy
-from testutils import FileComp, stdout_checker
+from testutils import FileComp, std_checker
 
 
 class test_topology_written(unittest.TestCase):
@@ -15,12 +15,11 @@ class test_topology_written(unittest.TestCase):
     def setUpClass(cls):
         print("\nTesting command line : topology")
         cls.tempstdout = sys.stdout
-        sys.stdout = stdout_checker()
+        sys.stdout = std_checker()
 
     @classmethod
     def tearDownClass(cls):
         sys.stdout = cls.tempstdout
-
 
     def setUp(self):
         self.storeArgv = sys.argv

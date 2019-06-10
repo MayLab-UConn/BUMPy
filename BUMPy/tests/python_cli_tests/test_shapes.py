@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bump
 sys.path.insert(0, os.path.abspath(".."))
 
 import bumpy
-from testutils import PDBComp, stdout_checker
+from testutils import PDBComp, std_checker
 
 
 class test_shapes(unittest.TestCase):
@@ -15,7 +15,7 @@ class test_shapes(unittest.TestCase):
     def setUpClass(cls):
         print("\nTesting command line : shapes")
         cls.tempstdout = sys.stdout
-        sys.stdout = stdout_checker()
+        sys.stdout = std_checker()
 
     @classmethod
     def tearDownClass(cls):

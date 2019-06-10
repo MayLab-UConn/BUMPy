@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
 sys.path.insert(0, os.path.abspath(".."))
 from bumpy import check_argument_sanity, check_pdb_dimension_overflow, shapes
-from testutils import stderr_checker
+from testutils import std_checker
 
 
 class emptyArgs:
@@ -27,7 +27,7 @@ class test_argument_sanity_checker_input_output(unittest.TestCase):
         self.validArgs.n = None
         self.validArgs.gen_dummy_particles = False
         # redirect stderr for text checking
-        self.stderr = stderr_checker()
+        self.stderr = std_checker()
         self.stored_stderr = sys.stderr
         sys.stderr = self.stderr
 
@@ -105,7 +105,7 @@ class test_argument_sanity_checker_zo(unittest.TestCase):
         self.invalidArgs.g = ["r_sphere:100"]
         self.invalidArgs.gen_dummy_particles = False
         # redirect stderr for text checking
-        self.stderr = stderr_checker()
+        self.stderr = std_checker()
         self.stored_stderr = sys.stderr
         sys.stderr = self.stderr
 
@@ -162,7 +162,7 @@ class test_argument_sanity_geometry(unittest.TestCase):
         self.invalidArgs.n = None
 
         # redirect stderr for text checking
-        self.stderr = stderr_checker()
+        self.stderr = std_checker()
         self.stored_stderr = sys.stderr
         sys.stderr = self.stderr
 
@@ -213,7 +213,7 @@ class test_argument_sanity_dummy(unittest.TestCase):
         self.validArgs.n = None
 
         # redirect stderr for text checking
-        self.stderr = stderr_checker()
+        self.stderr = std_checker()
         self.stored_stderr = sys.stderr
         sys.stderr = self.stderr
 
@@ -253,7 +253,7 @@ class test_pdb_overflow_checker(unittest.TestCase):
         self.geometric_arguments = {"x_dimension" : 1000, "y_dimension" : 1000}
         self.output_format = "output.pdb"
 
-        self.stderr = stderr_checker()
+        self.stderr = std_checker()
         self.stored_stderr = sys.stderr
         sys.stderr = self.stderr
 

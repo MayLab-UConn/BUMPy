@@ -89,7 +89,15 @@ class Metadata:
         Supports appending, duplication, slicing, and reordering operations
     '''
 
-    def __init__(self, atomname=np.empty(0), resname=np.empty(0), leaflets=np.empty(0), ressize=np.empty(0)):
+    def __init__(self, atomname=None, resname=None, leaflets=None, ressize=None):
+        if atomname is None:
+            atomname = np.empty(0, dtype="<U4")
+        if resname is None:
+            resname = np.empty(0, dtype="<U4")
+        if leaflets is None:
+            leaflets = np.empty(0, dtype="<U4")
+        if ressize is None:
+            ressize = np.empty(0, dtype="<U4")
         self.atomname = atomname.flatten()
         self.resname  = resname.flatten()
         self.leaflets = leaflets.flatten()
@@ -1269,7 +1277,7 @@ def parse_command_lines():
     # optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
     #                                'lipid in final shape - not yet implemented', default=None)
     optional_arguments.add_argument('--ignore_resnames', metavar='', help='colon separated list of resnames to ignore' +
-                                    'when reading in a structure file, for example to exclude water', default=[],
+                                    'when reading in a structure file, for example to exclude water', default=(),
                                     nargs="*")
 
     dummy_arguments.add_argument('--gen_dummy_particles', action='store_true',

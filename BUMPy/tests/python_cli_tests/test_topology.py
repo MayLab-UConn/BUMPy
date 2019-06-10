@@ -1,12 +1,8 @@
 import unittest
 import sys
 import os
-
-sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-sys.path.insert(0, os.path.abspath(".."))
-
 import bumpy
-from testutils import FileComp, std_checker
+from tests.testutils import FileComp, std_checker, get_relative_path
 
 
 class test_topology_written(unittest.TestCase):
@@ -33,11 +29,15 @@ class test_topology_written(unittest.TestCase):
                 os.remove(file)
 
     def test_complex_topology(self):
-        sys.argv.extend(["-f", "reference_files/input/input_asymm.gro", "-p", "topol_complex.top"])
+        sys.argv.extend(["-f", get_relative_path("reference_files/input/input_asymm.gro"),
+                         "-p", "topol_complex.top"])
         bumpy.main()
-        self.assertTrue(FileComp.filesMatchExactly("topol_complex.top", "reference_files/test_topology/topol_complex.top"))
+        self.assertTrue(FileComp.filesMatchExactly("topol_complex.top",
+                                                   get_relative_path("reference_files/test_topology/topol_complex.top")))
 
     def test_dummy_topology(self):
-        sys.argv.extend(["-f", "reference_files/input/input_asymm.gro", "-p", "topol_with_dummy.top", "--gen_dummy_particles", "--dummy_grid_thickness", "50"])
+        sys.argv.extend(["-f", get_relative_path("reference_files/input/input_asymm.gro"),
+                         "-p", "topol_with_dummy.top", "--gen_dummy_particles", "--dummy_grid_thickness", "50"])
         bumpy.main()
-        self.assertTrue(FileComp.filesMatchExactly("topol_with_dummy.top", "reference_files/test_topology/topol_with_dummy.top"))
+        self.assertTrue(FileComp.filesMatchExactly("topol_with_dummy.top",
+                        get_relative_path("reference_files/test_topology/topol_with_dummy.top")))

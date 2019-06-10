@@ -1,12 +1,8 @@
 import unittest
 import sys
 import os
-
-sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-sys.path.insert(0, os.path.abspath(".."))
-
 import bumpy
-from testutils import PDBComp, std_checker
+from tests.testutils import PDBComp, std_checker, get_relative_path
 
 
 class test_shapes(unittest.TestCase):
@@ -36,11 +32,12 @@ class test_shapes(unittest.TestCase):
                             'torus' : ['r_torus:75', 'r_tube:50']
                             }
         self.storeArgv = sys.argv
-        sys.argv = ["bumpy.py", "-z", "10", "-f", "reference_files/input/input_asymm.gro"]
+        sys.argv = ["bumpy.py", "-z", "10",
+                    "-f", get_relative_path("reference_files/input/input_asymm.gro")]
 
     def tearDown(self):
         sys.argv = self.storeArgv
-        written_test_files = ["test_{:s}.pdb".format(shape) for shape in self.geometries.keys()]
+        written_test_files = [get_relative_path("test_{:s}.pdb".format(shape)) for shape in self.geometries.keys()]
         for file in written_test_files:
             if os.path.exists(file):
                 os.remove(file)
@@ -48,12 +45,12 @@ class test_shapes(unittest.TestCase):
     def test_shapes(self):
         base_args = len(sys.argv)
         for shape, geometry in self.geometries.items():
-            sys.argv.extend(["-s", shape, "-o", "test_{:s}.pdb".format(shape), "-g"])
+            sys.argv.extend(["-s", shape, "-o", get_relative_path("test_{:s}.pdb".format(shape)), "-g"])
             sys.argv.extend(geometry)
             bumpy.main()
 
-            success = PDBComp.compareAtomFields("test_{:s}.pdb".format(shape),
-                                                "reference_files/test_shapes/test_{:s}.pdb".format(shape))
+            success = PDBComp.compareAtomFields(get_relative_path("test_{:s}.pdb".format(shape)),
+                                                get_relative_path("reference_files/test_shapes/test_{:s}.pdb".format(shape)))
             if not success:
                 os.rename("test_{:s}.pdb".format(shape), "failed_test_{:s}.pdb".format(shape))
             self.assertTrue(success, "Failure in shape {:s}".format(shape))

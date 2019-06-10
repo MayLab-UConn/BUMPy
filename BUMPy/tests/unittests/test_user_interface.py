@@ -1,11 +1,8 @@
 import unittest
 import sys
 import os
-
-sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-sys.path.insert(0, os.path.abspath(".."))
 from bumpy import check_argument_sanity, check_pdb_dimension_overflow, shapes
-from testutils import std_checker
+from tests.testutils import std_checker, get_relative_path
 
 
 class emptyArgs:
@@ -19,7 +16,7 @@ class test_argument_sanity_checker_input_output(unittest.TestCase):
             pass
         self.validArgs = args()
         self.validArgs.s = "sphere"
-        self.validArgs.f = "reference_files/test_user_interface/reference.pdb"
+        self.validArgs.f = get_relative_path("reference_files/test_user_interface/reference.pdb")
         self.validArgs.z = "10"
         self.validArgs.g = ["r_sphere:100"]
         self.validArgs.o = "argument_check_output.pdb"
@@ -97,7 +94,7 @@ class test_argument_sanity_checker_zo(unittest.TestCase):
     def setUp(self):
         self.invalidArgs = emptyArgs()
         self.invalidArgs.s = "sphere"
-        self.invalidArgs.f = "reference_files/test_user_interface/reference.pdb"
+        self.invalidArgs.f = get_relative_path("reference_files/test_user_interface/reference.pdb")
         self.invalidArgs.z = None
         self.invalidArgs.o = "output.pdb"
         self.invalidArgs.p = None
@@ -155,7 +152,7 @@ class test_argument_sanity_geometry(unittest.TestCase):
     def setUp(self):
         self.invalidArgs = emptyArgs()
         self.invalidArgs.s = "sphere"
-        self.invalidArgs.f = "reference_files/test_user_interface/reference.pdb"
+        self.invalidArgs.f = get_relative_path("reference_files/test_user_interface/reference.pdb")
         self.invalidArgs.z = "10"
         self.invalidArgs.o = "output.pdb"
         self.invalidArgs.p = None
@@ -205,7 +202,7 @@ class test_argument_sanity_dummy(unittest.TestCase):
             pass
         self.validArgs = args()
         self.validArgs.s = "sphere"
-        self.validArgs.f = "reference_files/test_user_interface/reference.pdb"
+        self.validArgs.f = get_relative_path("reference_files/test_user_interface/reference.pdb")
         self.validArgs.z = "10"
         self.validArgs.g = ["r_sphere:100"]
         self.validArgs.o = "argument_check_output.pdb"

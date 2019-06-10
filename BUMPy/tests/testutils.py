@@ -1,4 +1,5 @@
-
+import os
+import inspect
 
 class FileComp:
 
@@ -81,3 +82,17 @@ class std_checker:
 
     def flush(self):
         pass
+
+
+def get_relative_path(*paths):
+    '''
+        Amends a path to be relative to the directory of the calling script.
+
+        Taken from Rob Buckley
+        https://stackoverflow.com/questions/28021472/get-relative-path-of-caller-in-python
+        who took it from
+        https://stackoverflow.com/questions/1095543/get-name-of-calling-functions-module-in-python
+    '''
+    frm = inspect.stack()[1]
+    mod = inspect.getmodule(frm[0])
+    return os.path.join(os.path.dirname(mod.__file__), *paths)

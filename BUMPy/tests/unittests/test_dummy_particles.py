@@ -1,10 +1,5 @@
 import unittest
 import numpy as np
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-
 from bumpy import gen_dummy_grid
 
 

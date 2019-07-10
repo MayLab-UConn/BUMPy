@@ -1,15 +1,12 @@
 import unittest
 import numpy as np
-import sys
 import os
 import filecmp
-
-sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-sys.path.insert(0, os.path.abspath(".."))
-
 from bumpy import Molecules, Metadata
-from testutils import PDBComp, GROComp
-referenceFilePath = "reference_files/test_molecules_fileIO/"
+from tests.testutils import PDBComp, GROComp
+
+
+referenceFilePath = os.path.join(os.path.dirname(__file__), "reference_files/test_molecules_fileIO/")
 
 
 class test_read_input(unittest.TestCase):

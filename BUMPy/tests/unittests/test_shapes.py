@@ -1,11 +1,7 @@
 import unittest
 import numpy as np
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath("../.."))   # hacky way to get access to bumpy.py
-
 from bumpy import Molecules, shapes
+from tests.testutils import get_relative_path
 
 
 # -----------------------------------------------------
@@ -13,7 +9,7 @@ from bumpy import Molecules, shapes
 # -----------------------------------------------------
 class test_base_shape(unittest.TestCase):
     def test_raises_execeptions(self):
-        flat_reference = Molecules("reference_files/test_classes/reference.pdb")
+        flat_reference = Molecules(get_relative_path("reference_files/test_classes/reference.pdb"))
         baseshape = shapes.shape()
         with self.assertRaises(NotImplementedError):
             baseshape.gen_shape(flat_reference, 0)
@@ -29,7 +25,7 @@ class test_base_shape(unittest.TestCase):
 class test_shapes_run(unittest.TestCase):
 
     def setUp(self):
-        self.flat_reference = Molecules("reference_files/test_classes/reference.pdb")
+        self.flat_reference = Molecules(get_relative_path("reference_files/test_classes/reference.pdb"))
         self.flat_reference.duplicate_laterally(3, 3)  # should be large enough for all shapes
 
     def test_shapes_run(self):

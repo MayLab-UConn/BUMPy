@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 ''' Main script for BUMPY project.
-    version 1.0.0
-    github snapshot from Tue Nov 27 11:31:37 EST 2018
+    version 1.1.0
 '''
 
 import inspect
@@ -18,25 +17,32 @@ from time import time
 #  - scipy
 # Exit if otherwise
 
+
+def fatal_error(message):
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
 try:
     from inspect import getfullargspec
 except ImportError:
     if sys.version_info[0] == 2:
-        print("You are using python version 2, you must use python v3 for this script, exiting")
-        sys.exit()
+        fatal_error("You are using python version 2, you must use python v3 for this script, exiting")
 
 try:
     import numpy as np
 except ImportError:
-    print("numpy does not appear to be installed, cannot run script")
-    sys.exit()
+    fatal_error("numpy does not appear to be installed, cannot run script")
 
 try:
     from scipy.optimize import fsolve
 except ImportError:
-    print("scipy does not appear to be installed, cannot run script")
-    sys.exit()
+    fatal_error("scipy does not appear to be installed, cannot run script")
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# math utilities
+# ----------------------------------------------------------------------------------------------------------------------
 
 def cart2pol(cart_coords):
     ''' Converts cartesian to polar coordinates. Acts on first 2 columns (xy)
@@ -71,7 +77,7 @@ def outer_toroid_angle_from_area(r_torus, r_tube, area):
     return fsolve(toroid_area, 0)
 
 # ------------------------------------------------------------------------------
-# Molecules class
+# Main data classes
 # ------------------------------------------------------------------------------
 
 
@@ -82,7 +88,15 @@ class Metadata:
         Supports appending, duplication, slicing, and reordering operations
     '''
 
-    def __init__(self, atomname=np.empty(0), resname=np.empty(0), leaflets=np.empty(0), ressize=np.empty(0)):
+    def __init__(self, atomname=None, resname=None, leaflets=None, ressize=None):
+        if atomname is None:
+            atomname = np.empty(0, dtype="<U4")
+        if resname is None:
+            resname = np.empty(0, dtype="<U4")
+        if leaflets is None:
+            leaflets = np.empty(0, dtype="<U4")
+        if ressize is None:
+            ressize = np.empty(0, dtype="<U4")
         self.atomname = atomname.flatten()
         self.resname  = resname.flatten()
         self.leaflets = leaflets.flatten()
@@ -126,7 +140,7 @@ class Molecules:
         attribute, list of xyz box dimensions.
     '''
 
-    def __init__(self, infile=None, metadata=[], coords=[], boxdims=[], ignore=[]):
+    def __init__(self, infile=None, metadata=(), coords=(), boxdims=(), ignore=()):
         '''Can initialize from file, or with manual inputs (like when slicing).
            Can also initialize with all objects blank, and wait for input
         '''
@@ -422,7 +436,7 @@ class Molecules:
     # -------------------------------------------------------------------------
     # file i/o
     # -------------------------------------------------------------------------
-    def read_input(self, filein, fmt='pdb', reorganize=False, ignore=[]):
+    def read_input(self, filein, fmt='pdb', reorganize=False, ignore=()):
         '''Read input pdb or gro. .gro files are free format, which is tricky for reading if fields are missing or
            don't have whitespace (ie as occurs in manual format between resnumber and resname).
 
@@ -516,7 +530,7 @@ class Molecules:
         # assigning resid lengths and leaflets
         self.assign_leaflets()
 
-    def write_coordinates(self, outfile, position='positive', reorder=True, buff=8192, header=None, dummy_name=None,
+    def write_coordinates(self, outfile, position='None', reorder=True, buff=8192, header=None, dummy_name=None,
                           chunksize=100000):
         ''' TODO: Document
             TODO: check output file writability - general utility for file writing
@@ -671,11 +685,12 @@ class Molecules:
 # ------------------------------------------------------------------------------
 # SHAPE REPOSITORY
 # ------------------------------------------------------------------------------
+
+
 class shapes:
     ''' This is the repository for all of the shapes that can be built. The 3 basic shapes are semispheres, cylinders
-        and partial tori (junctions), as well as flat bilayers which I don't have a class for, we just take slices out
-        of the template. Every shape more complex than that should be a combination of the basic shapes combined
-        with some translations and rotations.
+        and partial tori (junctions), as well as flat bilayers. Every shape more complex than that should be a
+        combination of the basic shapes combined with some translations and rotations.
 
         Each shape needs to have 3 static methods:
             1. dimension_requirements - returns an xy dimension which is the minimum size the flat template can be.
@@ -1161,6 +1176,10 @@ class shapes:
             semicyl.append(junction2)
             return semicyl
 
+# ----------------------------------------------------------------------------------------------------------------------
+# Done with shapes repository - on to user i/o
+# ----------------------------------------------------------------------------------------------------------------------
+
 
 def parse_command_lines():
     ''' Parses command line for parameters, returns parsed arguments '''
@@ -1202,7 +1221,7 @@ def parse_command_lines():
     # optional_arguments.add_argument('--apl', metavar='', help='Slice top bilayer to achieve a specific area per ' +
     #                                'lipid in final shape - not yet implemented', default=None)
     optional_arguments.add_argument('--ignore_resnames', metavar='', help='colon separated list of resnames to ignore' +
-                                    'when reading in a structure file, for example to exclude water', default=[],
+                                    'when reading in a structure file, for example to exclude water', default=(),
                                     nargs="*")
 
     dummy_arguments.add_argument('--gen_dummy_particles', action='store_true',
@@ -1242,11 +1261,6 @@ def gen_dummy_grid(lateral_distance=5, thickness=50, atomname='DUMY', resname='D
 def display_parameters(cl_args):
     '''Displays selected parameters upon command line execution'''
     pass
-
-
-def fatal_error(message):
-    print(message)
-    sys.exit(1)
 
 
 def fileExists(file):
@@ -1342,7 +1356,7 @@ def check_argument_sanity(args):
     if not args.z:
         print("WARNING : zo was not set with the -z flag. Will use a default value of 10 angstroms. This should lead to " +
               "sufficient accuracy of lipid areas for most purposes, but you should refer to the BUMPy publication to " +
-              "ensure that the default value is sufficient for your simulation purposes")
+              "ensure that the default value is sufficient for your simulation purposes", file=sys.stderr)
     else:
         try:
             zo = [float(i) for i in args.z.split(':')]
@@ -1365,6 +1379,17 @@ def check_argument_sanity(args):
             fatal_error('Error: you requested dummy particles with the --gen_dummy_particles option, but did not specify the thickness with --dummy_grid_thickness')
         except ValueError:
             fatal_error('Error: your input of "{:s}" for dummy_grid_thickness could not be converted to a floating point number'.format(args.dummy_grid_thickness))
+
+
+def check_pdb_dimension_overflow(shape, args, output_format, maximum_value=9999.999):
+    '''
+        Checks for dimension overflow. The PDB format maximum size is 999.9999 nm
+    '''
+    if output_format[-4:] == ".pdb":
+        finaldims = shape.final_dimensions(**args)
+        if finaldims.max() > maximum_value:
+            fatal_error("Error: You have requested a shape with a long dimension of {} angstroms, but the PDB file format ".format(finaldims.max()) +
+                        "is limited to 10k angstroms. We suggest using the .gro format, which allows for up to 100k angstroms.")
 
 
 def list_shapes():
@@ -1402,6 +1427,8 @@ def main():
         zo *= 2
 
     shape_tobuild = getattr(shapes, args.s)
+
+    check_pdb_dimension_overflow(shape_tobuild, geometric_args, args.o)
 
     # read in pdb
     sys.stdout.write('Reading in PDB file  ... ')
@@ -1456,7 +1483,7 @@ def main():
     sys.stdout.write('Writing out PDB file ... ')
     sys.stdout.flush()
     t = time()
-    shape.write_coordinates(args.o, header=cli, dummy_name=dummy_name)
+    shape.write_coordinates(args.o, header=cli, dummy_name=dummy_name, position="positive")
     if args.p:
         shape.write_topology(args.p)
     if args.n:

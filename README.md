@@ -64,6 +64,8 @@ couple-lambda0           = vdw-q
 couple-lambda1           = none
 couple-intramol          = yes
 ```
+You may also need to add ```-DFLEXIBLE``` to the ```DEFINE``` mdp field for some Martini lipids, or minimization will hang at the first step.
+
 Please note that the use of soft-core potentials slows down minimization by about an order of magnitude. We therefore suggest
 a brief (~50 step) minimization using soft-core potentials, followed by a typical minimization without soft-core potentials. We
 have found that every system we've created in BUMPy can be successfully minimized with these techniques, so please do let us know

@@ -1,8 +1,8 @@
 import unittest
 import sys
 import os
-from bumpy import check_argument_sanity, check_pdb_dimension_overflow, shapes
-from tests.testutils import std_checker, get_relative_path
+from bumpy.bumpy import check_argument_sanity, check_pdb_dimension_overflow, shapes
+from bumpy.tests.testutils import std_checker, get_relative_path
 
 
 class emptyArgs:

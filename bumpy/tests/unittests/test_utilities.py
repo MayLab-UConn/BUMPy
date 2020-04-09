@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from bumpy import cart2pol, pol2cart, inner_toroid_angle_from_area, outer_toroid_angle_from_area
+from bumpy.bumpy import cart2pol, pol2cart, inner_toroid_angle_from_area, outer_toroid_angle_from_area
 
 
 class test_cart2pol(unittest.TestCase):

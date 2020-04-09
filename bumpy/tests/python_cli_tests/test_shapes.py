@@ -1,8 +1,8 @@
 import unittest
 import sys
 import os
-import bumpy
-from tests.testutils import PDBComp, std_checker, get_relative_path
+import bumpy.bumpy as bumpy
+from bumpy.tests.testutils import PDBComp, std_checker, get_relative_path
 
 
 class test_shapes(unittest.TestCase):

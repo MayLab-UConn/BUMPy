@@ -19,7 +19,7 @@ Just numpy and scipy!
 
 ### USAGE
 #### Command line tool
-BUMPY is designed to be used at the command line, with something like the command "python bumpy.py [ options ]". All you
+BUMPy is designed to be used at the command line, with something like the command "python bumpy.py [ options ]". All you
 need is the bumpy.py file! You can also take the file out of the BUMPy directory and use it wherever you want.
 * For a description of command line options, use the -h option at the command line.
 * For a list of supported curved shapes, use the --list option at the command line, or see the shape repository pdf.
@@ -75,6 +75,10 @@ if you come across a usage case where soft-core potentials are not sufficient!
 * Work will be done on the dev branch, and merged into master at official release points. This is so that
   one can pinpoint a release version if a science-affecting bug is found - but hopefully it won't matter!
 * If there's a shape you want to simulate, I can likely make a template for it very quickly. Email me with a description of what you want built and I'll add it to the repository.
+
+#### Tests
+To run units, run `python -m unittest discover` from the top level directory.
+
 ### Bugs
 To report bugs, email Kevin Boyd at kevin.boyd@uconn.edu
 

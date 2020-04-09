@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from bumpy import gen_dummy_grid
+from bumpy.bumpy import gen_dummy_grid
 
 
 class test_dummy_grid_generation(unittest.TestCase):

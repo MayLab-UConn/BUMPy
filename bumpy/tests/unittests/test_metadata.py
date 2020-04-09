@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from bumpy import Metadata
+from bumpy.bumpy import Metadata
 
 
 # TODO checks for numpy in metadata

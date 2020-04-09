@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 import os
 import filecmp
-from bumpy import Molecules, Metadata
-from tests.testutils import PDBComp, GROComp
+from bumpy.bumpy import Molecules, Metadata
+from bumpy.tests.testutils import PDBComp, GROComp
 
 
 referenceFilePath = os.path.join(os.path.dirname(__file__), "reference_files/test_molecules_fileIO/")

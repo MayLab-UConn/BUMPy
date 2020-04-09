@@ -1,0 +1,9 @@
+[run]
+source = bumpy
+omit =
+    bumpy/tests/*
+[report]
+exclude_lines =
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass

@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from bumpy import Molecules, shapes
-from tests.testutils import get_relative_path
+from bumpy.bumpy import Molecules, shapes
+from bumpy.tests.testutils import get_relative_path
 
 
 # -----------------------------------------------------

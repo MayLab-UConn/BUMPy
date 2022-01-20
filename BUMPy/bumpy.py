@@ -768,8 +768,8 @@ class shapes:
             bot_slice_radius = np.sqrt(2) * (r_sphere - zo[1])
             slice_origin = np.mean(template_bilayer.coords[:, 0:2], axis=0)
             # calculate slice indices
-            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius, exclude_radius=r_hole)
-            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius, exclude_radius=r_hole)
+            bool_in_top_slice = template_bilayer.circular_slice(slice_origin, top_slice_radius)
+            bool_in_bot_slice = template_bilayer.circular_slice(slice_origin, bot_slice_radius)
             # make slices
             top_leaflet = template_bilayer.slice_pdb(bool_in_top_slice &  template_bilayer.metadata.leaflets)
             bot_leaflet = template_bilayer.slice_pdb(bool_in_bot_slice &  np.invert(template_bilayer.metadata.leaflets))
@@ -778,8 +778,12 @@ class shapes:
             top_leaflet.scale_flat_to_spherical(r_sphere, r_sphere + zo[0])
             bot_leaflet.scale_flat_to_spherical(r_sphere, r_sphere - zo[0])
 
+
             # merge and transform slices
             top_leaflet.append(bot_leaflet)
+            bool_in_circular_exclusion = top_leaflet.circular_slice([0, 0], np.finfo(float).max, exclude_radius=r_hole)
+            temp = top_leaflet.slice_pdb(bool_in_circular_exclusion)
+            top_leaflet = temp
 
             if print_intermediates:
                 top_leaflet.write_coordinates(print_intermediates, position=False)
@@ -1175,6 +1179,54 @@ class shapes:
             semicyl.append(junction)
             semicyl.append(junction2)
             return semicyl
+
+    class budding_vesicle(shape):
+        @staticmethod
+        def dimension_requirements(r_sphere, r_junction, r_interface, l_flat, buff=50):
+            sphdims = shapes.semisphere.dimension_requirements(r_sphere)
+            flatdims = np.array([l_flat, l_flat])
+            jdims  =  shapes.inner_quarter_torus.dimension_requirements(r_sphere + r_junction, r_junction)
+            return np.array([max([sphdims[0], flatdims[0], jdims[0]]), max([sphdims[1], flatdims[1], jdims[1]])])
+
+        @staticmethod
+        def final_dimensions(r_sphere, r_junction, r_interface, l_flat, buff=50):
+            return np.array([l_flat, l_flat, 2 * r_sphere + 2 * r_junction + buff])
+
+        @staticmethod
+        def gen_shape(template_bilayer, zo, r_sphere, r_junction, r_interface, l_flat):
+
+            if (r_sphere + r_junction) > (l_flat / 2):
+                raise UserWarning("Flat region too small for sphere/junction radii")
+
+            # Translation amount is tricky, r_sphere + r_junction leaves the sphere too high, because the sphere is truncated
+            # by cutting a hole out of it. Using trig to calculate, with the radius as hypotenuse and the r_hole as one end,
+            # with the distance to translate the final pole of the triangle.
+            truncated_r_sphere = np.sqrt(r_sphere **2 - r_interface ** 2)
+
+            # The top half has no hole, the bottom half does
+            semisph_top   = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere)
+            semisph_top.translate([0, 0, r_junction + truncated_r_sphere])
+            semisph_bot   = shapes.semisphere.gen_shape(template_bilayer, zo, r_sphere, r_hole=r_interface)
+            semisph_bot.rotate([180, 0, 0])
+            semisph_bot.translate([0, 0, truncated_r_sphere + r_junction])
+
+            template_2 = deepcopy(template_bilayer)
+            template_2.rotate([180, 0, 0])     # junctions show inner leaflet to top, so reverse coordinates
+            template_2.metadata.leaflets = 1 - template_2.metadata.leaflets   # fix leaflet description
+
+            junction  = shapes.inner_quarter_torus.gen_shape(template_2, zo, r_interface, r_junction)
+            junction.metadata.leaflets = 1 - junction.metadata.leaflets   # now reverse leaflets again to match "top"
+            junction2 = deepcopy(junction)
+            junction.rotate([180, 0, 0])
+
+            flat_slice = shapes.flat_bilayer.gen_shape(template_bilayer, zo, l_flat, l_flat, r_hole=r_interface)
+            flat_slice.translate([0, 0, -r_junction])
+
+            semisph_top.append(semisph_bot)
+            semisph_top.append(junction)
+            semisph_top.append(junction2)
+            semisph_top.append(flat_slice)
+            return semisph_top
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Done with shapes repository - on to user i/o
